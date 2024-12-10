@@ -33,3 +33,43 @@ ls SRR*/*sra | sed "s/^/\/stor\/work\/Ochman\/hassan\/tools\/sratoolkit\.3\.0\.6
 #QC:
 ls *fastq | sed "s/^/fastp -i /g" | sed "s/$/ -o /g" | awk '{print $0$3"trimmed"}' | sed "s/fastqtrimmed/trimmed.fastq/g" | sed "s/$/ --thread 16/g" | bash
 ##
+
+
+#Make REL606 database:
+grep "REL606" /stor/work/Ochman/hassan/protogene_extension/Ecoli_list/Ecoli_all_annotated.gtf | awk -F '\t' '($3=="CDS")' > REL606_all_annotated.gtf
+
+#Extract ORFs:
+
+grep "^>" REL606.getorf.noCTG | grep -v "REVERSE" | sed "s/\[//g" | sed "s/\]//g" | tr -d ">" | sed "s/\[//g" | sed "s/\]//g" | tr -d ">" | awk '{OFS=""}{print $1"\t.\tCDS\t",$2,"\t",$4+3,"\t.\t+\t0\tgene_id \"",$1,"\";transcript_id \"",$1,"\";"}' | sed "s/_/\t/2" | cut -f1,3- > REL606.getorf.noCTG.gtf
+grep "^>" REL606.getorf.noCTG | grep "REVERSE" | sed "s/\[//g" | sed "s/\]//g" | tr -d ">" | awk '{OFS=""}{print $1"\t.\tCDS\t",$4-3,"\t",$2,"\t.\t-\t0\tgene_id \"",$1,"\";transcript_id \"",$1,"\";"}' | sed "s/_/\t/2" | cut -f1,3- >> REL606.getorf.noCTG.gtf
+
+awk -F '\t' '($7=="+")' REL606.getorf.noCTG.gtf |
+awk -F '\t' '{OFS=FS}{print $1,$2,$3,$4-500,$5,$6,$7,$8,$9}' |
+awk -F '\t' '{OFS=FS}{if ($4 < 1) $4 = 1; print}' |
+gtf2bed | bedtools getfasta -s -name -fi REL606.faa -bed - |
+sed '/^>/!{ s/.*/echo "&" | rev/e }' |
+awk '{if ($0 ~ /^>/) print; else {gsub(/.{3}/, "& "); print}}' |
+cut -f2- -d " " |
+sed -E 's/AGT|AAT|GAT/%/g' |
+seqkit fx2tab | cut -f1 -d "%" |
+sed -E 's/GTA|GTG|GTT/@/g' |
+rev | cut -f2- -d "@" | rev |
+sed "s/@/NNN/g" | sed "s/ //g" | awk -F '\t' '{print $1,length($2)+6}' | sed "s/ /\t/g" > REL606.getorf.noCTG.longestORFlengths.tsv
+
+awk -F '\t' '($7=="-")' REL606.getorf.noCTG.gtf |
+awk -F '\t' '{OFS=FS}{print $1,$2,$3,$4,$5+500,$6,$7,$8,$9}' |
+awk -F '\t' '{OFS=FS}{if ($5 > 4629812) $5 = 4629812; print}' |
+gtf2bed | bedtools getfasta -s -name -fi REL606.faa -bed - |
+sed '/^>/!{ s/.*/echo "&" | rev/e }' |
+awk '{if ($0 ~ /^>/) print; else {gsub(/.{3}/, "& "); print}}' |
+cut -f2- -d " " |
+sed -E 's/AGT|AAT|GAT/%/g' |
+seqkit fx2tab | cut -f1 -d "%" |
+sed -E 's/GTA|GTG|GTT/@/g' |
+rev | cut -f2- -d "@" | rev |
+sed "s/@/NNN/g" | sed "s/ //g" | awk -F '\t' '{print $1,length($2)+6}' | sed "s/ /\t/g" >> REL606.getorf.noCTG.longestORFlengths.tsv
+
+cut -f -2 -d "\"" REL606.getorf.noCTG.gtf | sed "s/gene_id \"//g" | sort -k9 | join -1 9 -2 1 - temp | awk '($8=="+")' | awk '{print $2"\t.\tCDS\t"$6-$NF+1"\t"$6"\t.\t+\t.\ttranscript_id \""$1"\";gene_id \""$1"\";\t"$5}' > REL606.getorf.noCTG.longest.gtf
+cut -f -2 -d "\"" REL606.getorf.noCTG.gtf | sed "s/gene_id \"//g" | sort -k9 | join -1 9 -2 1 - temp | awk '($8=="-")' | awk '{print $2"\t.\tCDS\t"$5"\t"$5+$NF-1"\t.\t-\t.\ttranscript_id \""$1"\";gene_id \""$1"\";\t"$6}' >> REL606.getorf.noCTG.longest.gtf
+
+
