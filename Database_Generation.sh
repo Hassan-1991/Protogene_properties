@@ -29,3 +29,7 @@ cd /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/RNAseq/r
 sed "s/^/\/stor\/work\/Ochman\/hassan\/tools\/sratoolkit.3.0.6-ubuntu64\/bin\/prefetch /g" accession_list.txt | bash
 #Get fastq out of them:
 ls SRR*/*sra | sed "s/^/\/stor\/work\/Ochman\/hassan\/tools\/sratoolkit\.3\.0\.6-ubuntu64\/bin\/fasterq-dump /g" | bash
+#Mori2021, RNAseq bam files:
+#QC:
+ls *fastq | sed "s/^/fastp -i /g" | sed "s/$/ -o /g" | awk '{print $0$3"trimmed"}' | sed "s/fastqtrimmed/trimmed.fastq/g" | sed "s/$/ --thread 16/g" | bash
+##
