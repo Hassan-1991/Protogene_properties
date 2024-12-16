@@ -1,0 +1,3 @@
+cd /stor/scratch/Ochman/hassan/112724_protogene_extension
+
+awk '{OFS=""}{print "time java -Xmx3500M -jar \/stor\/work\/Ochman\/hassan\/Fall_2022\/massspec_database\/MSGFplus\/MSGFPlus.jar -s \/stor\/work\/Ochman\/hassan\/mass_spec\/raw_data\/",$1," -d \/stor\/work\/Ochman\/hassan\/proteomics_denovo\/1031_RNAseq_databasemaking\/",$1,"_htseq.tsv.database.tpm1.proteins.fa -inst 1 -t 10ppm -ti 0,1 -mod \/stor\/work\/Ochman\/hassan\/Fall_2022\/08112023_MSGFpercolator\/mods.txt -ntt 2 -tda 1 -maxMissedCleavages 2 -addFeatures 1 -thread 72"}' MURIfiles_with_RNAprotein_data.txt | sed "s/\.mgf//g" > MSGF.sh
