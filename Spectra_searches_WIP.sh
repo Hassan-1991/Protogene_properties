@@ -27,19 +27,5 @@ cat *tsv | egrep -i "gms|balrog|smorf|prodigal" | grep -v "XXX" > all_canonical_
 cat *tsv | egrep "XXX" | cut -f10 | cut -f2- -d '.' | rev | cut -f2- -d '.' | rev | sort -u | grep -o -F -f - all_canonical_PSMs.tsv | sort -u | grep -F -f - *tsv | egrep "XXX" | cut -f11 | sort -u > exclude
 cat *tsv | egrep -iv "XXX|gms|balrog|smorf|prodigal" | cut -f10 | cut -f2- -d '.' | rev | cut -f2- -d '.' | rev | sort -u | grep -o -F -f - all_canonical_PSMs.tsv | sort -u | grep -F -f - *tsv | egrep -iv "XXX|gms|balrog|smorf|prodigal" | cut -f11 | sort -u >> exclude
 
-#number of PSMs
-wc -l chludwig_Y150505_018_IDA_Lib18-Zhonnge_Ecoli_Lib_18.tsv | cut -f1 -d " "
-#number of PSMs passing different cutoffs
-for i in 0.01 0.001 0.0001 0.00001
-awk -v var="$i" -F '\t' '($16<var)' chludwig_Y150505_018_IDA_Lib18-Zhonnge_Ecoli_Lib_18.tsv | cut -f11 | sort -u | wc -l
-done
-#Annotated
-for i in 0.01 0.001 0.0001 0.00001
-do awk -v var="$i" -F '\t' '($16<var)' chludwig_Y150505_018_IDA_Lib18-Zhonnge_Ecoli_Lib_18.tsv | cut -f11 | sort -u | egrep -i "gms|balrog|smorf|prodigal" | grep -v "XXX" | wc -l
-done
-
-cat *tsv | egrep -i "gms|balrog|smorf|prodigal" | grep -v "XXX" > all_canonical_PSMs.tsv
-cat *tsv | egrep "XXX" | cut -f10 | cut -f2- -d '.' | rev | cut -f2- -d '.' | rev | sort -u | grep -o -F -f - all_canonical_PSMs.tsv | sort -u | grep -F -f - *tsv | egrep "XXX" | cut -f11 | sort -u > exclude
-
 grep -v -F -f exclude *tsv | awk -F '\t' '($16<0.00001)' | cut -f11 | sort -u > test2
 egrep -v "XXX" test2 | egrep -iv "balrog|gms|prod|smorf" | grep -F -f - c*tsv | grep -v "XXX" | awk -F '\t' '($16<0.00001)' | cut -f11 | sort | uniq -c | wc -l
