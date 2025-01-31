@@ -22,6 +22,11 @@ do
 echo "python3 /stor/work/Ochman/hassan/mass_spec/test_files/mgf_search_result_annotator_test1.py --format MSGF_ident --input /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/MS/mgf/real_mgf/${i}.mgf --search /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/MS/mgf/real_mgf/${i}.mzid --output /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/MS/mgf/real_mgf/${i}_annotated.mgf"
 done
 
+#Overall
+cat *tsv | egrep -i "gms|balrog|smorf|prodigal" | grep -v "XXX" > all_canonical_PSMs.tsv
+cat *tsv | egrep "XXX" | cut -f10 | cut -f2- -d '.' | rev | cut -f2- -d '.' | rev | sort -u | grep -o -F -f - all_canonical_PSMs.tsv | sort -u | grep -F -f - *tsv | egrep "XXX" | cut -f11 | sort -u > exclude
+cat *tsv | egrep -iv "XXX|gms|balrog|smorf|prodigal" | cut -f10 | cut -f2- -d '.' | rev | cut -f2- -d '.' | rev | sort -u | grep -o -F -f - all_canonical_PSMs.tsv | sort -u | grep -F -f - *tsv | egrep -iv "XXX|gms|balrog|smorf|prodigal" | cut -f11 | sort -u >> exclude
+
 #number of PSMs
 wc -l chludwig_Y150505_018_IDA_Lib18-Zhonnge_Ecoli_Lib_18.tsv | cut -f1 -d " "
 #number of PSMs passing different cutoffs
