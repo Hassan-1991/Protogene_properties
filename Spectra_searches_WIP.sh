@@ -41,18 +41,5 @@ done
 cat *tsv | egrep -i "gms|balrog|smorf|prodigal" | grep -v "XXX" > all_canonical_PSMs.tsv
 cat *tsv | egrep "XXX" | cut -f10 | cut -f2- -d '.' | rev | cut -f2- -d '.' | rev | sort -u | grep -o -F -f - all_canonical_PSMs.tsv | sort -u | grep -F -f - *tsv | egrep "XXX" | cut -f11 | sort -u > exclude
 
-
-
-for j in $(ls /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/MS/mgf/real_mgf/*tsv | rev | cut -f1 -d '/' | rev)
-do
-for i in 0.01 0.001 0.0001 0.00001 0.000001
-do
-egrep -i "gms|balrog|smorf|prodigal" /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Caglar2017/MS_mgf/MURI*/$j | grep -v "XXX" > temp
-
-
-
-egrep "NC_|XXX" /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Caglar2017/MS_mgf/MURI*/$j | grep -v -F -f exclude | awk -v var=$i -F '\t' '($16<var)' | cut -f11 | sort -u | grep -v -c "XXX" | sed "s/$/\t$i\tnoncanonical\t$j/g" >> noncan_decoy_counts.tsv
-egrep "NC_|XXX" /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Caglar2017/MS_mgf/MURI*/$j | grep -v -F -f exclude | awk -v var=$i -F '\t' '($16<var)' | cut -f11 | sort -u | grep -c "XXX" | sed "s/$/\t$i\tdecoy\t$j/g" >> noncan_decoy_counts.tsv
-done
-done
-
+grep -v -F -f exclude *tsv | awk -F '\t' '($16<0.00001)' | cut -f11 | sort -u > test2
+egrep -v "XXX" test2 | egrep -iv "balrog|gms|prod|smorf" | grep -F -f - c*tsv | grep -v "XXX" | awk -F '\t' '($16<0.00001)' | cut -f11 | sort | uniq -c | wc -l
