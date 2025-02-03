@@ -42,3 +42,6 @@ done
 /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/MS/mgf/
 #bamfiles:
 /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/RNAseq/bamfiles
+
+#ECOR mgfs:
+/stor/scratch/Ochman/hassan/112724_protogene_extension/data/ECOR_2023/
