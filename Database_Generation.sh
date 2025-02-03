@@ -1,4 +1,4 @@
-#This code generates proteogenomics search databases from two genomes
+#This code generates proteogenomics search databases from genomes
 
 #Caglar2017 dataset was generated from REL606
 #All but one experiment in Mori2021 was conducted in NCM3722, which is 99%+ similar to K12_MG1655; so we just use that
