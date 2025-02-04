@@ -60,8 +60,15 @@ awk -F '\t' '($9=="sORF")' Nakahigashi_2016 | awk -F '\t' '{OFS=FS}{print $4,$6,
 awk -F '\t' '{print "U00096.2\t.\tCDS\t"$2"\t"$3"\t.\t"$1"\t.\ttranscript_id \"Nakahigashi_"NR"\";gene_id \"Nakahigashi_"NR"\";"}' Nakahigashi_2016_filtered | awk -F '\t' '($7=="+")' > Nakahigashi_2016.gtf
 awk -F '\t' '{print "U00096.2\t.\tCDS\t"$2"\t"$3"\t.\t"$1"\t.\ttranscript_id \"Nakahigashi_"NR"\";gene_id \"Nakahigashi_"NR"\";"}' Nakahigashi_2016_filtered | awk -F '\t' '($7=="-")' | awk -F '\t' '{OFS=FS}{print $1,$2,$3,$5,$4,$6,$7,$8,$9}' >> Nakahigashi_2016.gtf
 
-#Ecoli: My mass spec proteins:
-cat /stor/work/Ochman/hassan/proteomics_denovo/1031_RNAseq_databasemaking/final_proteins_passed_cutoff.gtf | sed "s/NC_012967.1/REL606/g" | gtf2bed | bedtools getfasta -s -name -fi REL606.fasta  -bed - | seqkit fx2tab | grep -P -v "\tCTG" | cut -f1 -d "(" | sed "s/.*/\"&\"/g" | grep -f - /stor/work/Ochman/hassan/proteomics_denovo/1031_RNAseq_databasemaking/final_proteins_passed_cutoff.gtf | sed "s/NC_012967.1/REL606/g" > MS.gtf
+#Ecoli: My mass spec proteins from five strains:
+#REL606:
+grep "^>" /stor/scratch/Ochman/hassan/112724_protogene_extension/Caglar2017_MSvalidated_proteins.cds.faa | tr -d ">" | cut -f1 -d "(" | sed "s/.*/\"&\"/g" | grep -F -f - /stor/scratch/Ochman/hassan/112724_protogene_extension/REL606.final.gtf | awk -F '\t' '{OFS=FS}{print "REL606",$2,$3,$4,$5,$6,$7,$8,$9}' > MS_REL606.gtf
+#K12MG1655:
+sed "s/.*/\"&\"/g" /stor/scratch/Ochman/hassan/112724_protogene_extension/Mori2021 | grep -F -f - /stor/scratch/Ochman/hassan/112724_protogene_extension/K12MG1655.final.gtf > MS_K12MG1655.gtf
+#ECOR:
+sed "s/.*/\"&\"/g" /stor/scratch/Ochman/hassan/112724_protogene_extension/ECOR2023_MSvalidated_proteins.txt | grep -F -f - /stor/scratch/Ochman/hassan/112724_protogene_extension/data/ECOR_2023/*genome.final.gtf | grep "ECOR_11" | cut -f2- -d ":" > MS_ECOR_11.gtf
+sed "s/.*/\"&\"/g" /stor/scratch/Ochman/hassan/112724_protogene_extension/ECOR2023_MSvalidated_proteins.txt | grep -F -f - /stor/scratch/Ochman/hassan/112724_protogene_extension/data/ECOR_2023/*genome.final.gtf | grep "ECOR_27" | cut -f2- -d ":" > MS_ECOR_27.gtf
+sed "s/.*/\"&\"/g" /stor/scratch/Ochman/hassan/112724_protogene_extension/ECOR2023_MSvalidated_proteins.txt | grep -F -f - /stor/scratch/Ochman/hassan/112724_protogene_extension/data/ECOR_2023/*genome.final.gtf | grep "ECOR_37" | cut -f2- -d ":" > MS_ECOR_37.gtf
 
 #Salmonella: Fijalkowski_2022
 
@@ -87,10 +94,24 @@ tail -n+2 Baek_2017  | cut -f 1,3,4 | grep -v "^A" | awk -F '\t' '{print "CP0013
 tail -n+2 Baek_2017  | cut -f 1,3,4 | grep -v "^A" | awk -F '\t' '{print "CP001363.1\t.\tCDS\t"$2"\t"$3"\t.\t-\t.\ttranscript_id \""$1"\";gene_id \""$1"\";"}' | gtf2bed | bedtools getfasta -s -name -fi Salmonella_14028s.fasta -bed - | seqkit fx2tab | sed "s/$/#/g" | rev | sed "s/\t//" | rev | sed "s/\t/%/g" | egrep "%ATG|%TTG|%GTG" | egrep "TAA#|TGA#|TAG#" | cut -f1 -d "(" | grep -w -f - Baek_2017 | cut -f 3,4 | grep -v "^M" | awk -F '\t' '{print "CP001363.1\t.\tCDS\t"$1"\t"$2"\t.\t-\t.\ttranscript_id \"Baekminus_"NR"\";gene_id \"Baekminus_"NR"\";"}' >> Baek_2017.gtf
 
 #Put them all on a gtf
-cat Stringer_2021.gtf Weaver_2019.gtf VanOrsdel_2018.gtf Ndah_2017.gtf Nakahigashi_2016.gtf MS.gtf > all_protogenes.gtf
-cat Fijalkowski_2022.gtf Willems_2020.gtf Venturini_2020.gtf ST_Ndah_2017.gtf Giess_2017.gtf Baek_2017.gtf >> all_protogenes.gtf
+cat Stringer_2021.gtf Weaver_2019.gtf VanOrsdel_2018.gtf Ndah_2017.gtf Nakahigashi_2016.gtf MS_REL606.gtf MS_K12MG1655.gtf MS_ECOR_11.gtf MS_ECOR_27.gtf MS_ECOR_37.gtf | sed "s/Ndah/EC_Ndah/g" > all_protogenes.gtf
+cat ../Salmonella_list/Fijalkowski_2022.gtf ../Salmonella_list/Willems_2020.gtf ../Salmonella_list/Venturini_2020.gtf ../Salmonella_list/Ndah_2017.gtf ../Salmonella_list/Giess_2017.gtf ../Salmonella_list/Baek_2017.gtf | sed "s/Ndah/ST_Ndah/g" >> all_protogenes.gtf
+cat ../Mycobacterium_list/Mycobacterium_all_protogenes_final.gtf >> all_protogenes.gtf
 
-#Annotate the three genomes using prodigal, genemarks2 and balrog
+#Annotate ALL genomes using prodigal, genemarks2 and balrog
+
+mkdir all_genomes
+#List of genomes:
+#Ecoli:
+1. CP001509_3.fna
+2. REL606
+3. U00096.2
+4. NC_000913.3
+5, 6, 7. ECOR11,23,37 (balrog continuing)
+
+#Finish annotation and curate the rest of these
+
+#REL606, K12MG1655, Salmonella, 
 cp /stor/work/Ochman/hassan/tools/gms2_linux_64/.gmhmmp2_key .
 for i in sequence_RS.fasta sequence_oldMG1655.fasta CP001509_3.fna REL606.fasta Salmonella_14028s.fasta GCA_000210855.2_ASM21085v2_genomic.fna; do echo "/stor/work/Ochman/hassan/tools/prod_gms_balrog.sh ${i}"; done > running.sh
 /stor/work/Ochman/hassan/tools/parallelize_run.sh
