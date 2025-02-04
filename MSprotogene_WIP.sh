@@ -62,3 +62,23 @@ NC_012967.1_64224(+)	NC_000913.3_64789
 
 cat Caglar2017_withRNAseq Caglar2017_withoutRNAseq | sort -u | sed "s/$/(/g" | grep --no-group-separator -A1 -F -f - REL606.final.faa > Caglar2017_MSvalidated_proteins.cds.faa
 
+#Let's see if this problem can be solved quickly by blasting
+awk -F '\t' '($16<0.01)' ../data/Caglar2017/MS_spectra_searches/*tsv | grep -v "XXX_" | grep -v "REL606" | cut -f11 | sort -u > REL606_bothdatasets_qval0.01.txt
+awk -F '\t' '($16<0.01)' ../RNAseq_diversion/*tsv | grep -v "XXX_" | grep -v "REL606" | cut -f11 | sort -u >> REL606_bothdatasets_qval0.01.txt
+sort -u REL606_bothdatasets_qval0.01.txt -o REL606_bothdatasets_qval0.01.txt
+awk -F '\t' '($16<0.01)' ../data/Mori2021/MS/mgf/real_mgf/*tsv | grep -v "XXX_" | egrep -iv "gms|balrog|smorf|prodigal" | cut -f11 | sort -u > K12MG1655_qval0.01.txt
+awk -F '\t' '($16<0.01)' ../data/ECOR_2023/8925*tsv | cut -f11 | sort -u | egrep -iv "XXX|gms|balrog|prodigal|smorf" > ECOR2023_qval0.01.txt
+
+seqkit fx2tab ../REL606.final.prot.faa | sed "s/\t$//g" | grep -f REL606_bothdatasets_qval0.01.txt - | sed "s/^/>/g" | sed "s/\t/\n/g" > REL606_bothdatasets_qval0.01.prot.faa
+seqkit fx2tab ../K12MG1655.final.prot.faa | sed "s/\t$//g" | grep -f K12MG1655_qval0.01.txt - | sed "s/^/>/g" | sed "s/\t/\n/g" > K12MG1655_qval0.01.prot.faa
+cat ../data/ECOR_2023/ECOR_*_genome.final.prot.faa | seqkit fx2tab - | sed "s/\t$//g" | grep -f ECOR2023_qval0.01.txt - | sed "s/^/>/g" | sed "s/\t/\n/g" > ECOR2023_qval0.01.prot.faa
+cat REL606_bothdatasets_qval0.01.prot.faa K12MG1655_qval0.01.prot.faa ECOR2023_qval0.01.prot.faa > all_qval0.01.prot.faa
+
+seqkit fx2tab all_qval0.01.prot.faa | sed "s/\t$//g" | awk -F '\t' '{print $1,length($2)}' | sed "s/ /\t/g" | sort -k1 > all_qval0.01.lengths.tsv
+grep -v "^#" test | sort -k1 | join -1 1 -2 1 - all_qval0.01.lengths.tsv | sed "s/ /\t/g" | awk -F '\t' '{OFS=FS}{print $0,($8-$7+1)/$13}' | awk -F '\t' '($3>80&&$NF>0.8)' | awk -F '\t' '($1!=$2)' 
+
+grep -v "^#" test | sort -k1 | join -1 1 -2 1 - all_qval0.01.lengths.tsv | sed "s/ /\t/g" | awk -F '\t' '{OFS=FS}{print $0,($8-$7+1)/$13}' | awk -F '\t' '($3>80&&$NF>0.8)' | awk -F '\t' '($1!=$2)' | sed "s/(+)/(/" | sed "s/(-)/(/" | grep -F -f all_MS_validated_proteins.txt - > parseable.tsv
+
+#Parse the above later to find intra-database links
+
+grep "^>" ../Caglar2017_MSvalidated_proteins.cds.faa | cut -f1 -d "(" | tr -d ">" | cat - ../Mori2021 ../ECOR2023_MSvalidated_proteins.txt | sort -u | sed "s/$/(/g" > all_MS_validated_proteins.txt
