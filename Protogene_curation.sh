@@ -98,6 +98,15 @@ cat Stringer_2021.gtf Weaver_2019.gtf VanOrsdel_2018.gtf Ndah_2017.gtf Nakahigas
 cat ../Salmonella_list/Fijalkowski_2022.gtf ../Salmonella_list/Willems_2020.gtf ../Salmonella_list/Venturini_2020.gtf ../Salmonella_list/Ndah_2017.gtf ../Salmonella_list/Giess_2017.gtf ../Salmonella_list/Baek_2017.gtf | sed "s/Ndah/ST_Ndah/g" >> all_protogenes.gtf
 cat ../Mycobacterium_list/Mycobacterium_all_protogenes_final.gtf >> all_protogenes.gtf
 
+#How to identify species-subsets of proto-genes:
+
+#Mycobac:
+egrep -i "leaderless|riboret" all_protogenes_tobeexcluded.txt
+#Salmonella:
+egrep -i "Giess|ST_Ndah|Venturini|Fijalkowski" all_protogenes_tobeexcluded.txt
+#Ecoli:
+egrep -i "Stringer|VanOrsdel|Weaver|Nakahigashi|EC_Ndah|NC_|NZ_" all_protogenes_tobeexcluded.txt
+
 #Annotate ALL genomes using prodigal, genemarks2 and balrog
 
 mkdir all_genomes
@@ -107,7 +116,23 @@ mkdir all_genomes
 2. REL606
 3. U00096.2
 4. NC_000913.3
-5, 6, 7. ECOR11,23,37 (balrog continuing)
+5, 6, 7. ECOR11,27,37 (balrog continuing)
+#Balrog didn't work for one-quarter of ECOR11 and ECOR27
+cat ECOR11_aa_balrog.gff ECOR11_ab_ab_balrog.gff > ECOR_11_genome_balrog.gff #incomplete
+cat ECOR27_aa_ab_balrog.gff ECOR27_ab_balrog.gff > ECOR_27_genome_balrog.gff #incomplete
+cat ECOR37_aa_balrog.gff ECOR37_ab_balrog.gff > ECOR_37_genome_balrog.gff
+
+#Salmonella:
+../Salmonella_list/GCA_000210855.2_ASM21085v2_genomic.fna
+#CP001363.1
+../Salmonella_list/Salmonella_14028s.fasta
+#FQ312003.1
+#HE654725.1
+#HE654726.1
+#HE654724.1
+
+#Mycobacterium:
+../Mycobacterium_list/MTb_novel_coordinates.gtf
 
 #Finish annotation and curate the rest of these
 
@@ -123,6 +148,11 @@ for i in sequence_RS.fasta sequence_oldMG1655.fasta CP001509_3.fna REL606.fasta 
 
 #Turn the gffs into gtfs
 
+for i in ECOR_11_genome ECOR_27_genome ECOR_37_genome
+do
+cut -f-8 "$i"*balrog.gff | awk -F '\t' '{print $0,"\ttranscript_id \""$1"_balrog_"NR"\";gene_id \""$1"_balrog_"NR"\";"}' > "$i"_balrog.gtf
+done
+
 for i in sequence_RS sequence_oldMG1655 CP001509_3 REL606 Salmonella_14028s GCA_000210855.2
 do
 cut -f-8 "$i"*smorf_output/*gff | awk -F '\t' '{print $0,"transcript_id \""$1"_smorfer_"NR"\";gene_id \""$1"_smorfer_"NR"\";"}' > "$i"_smorfer.gtf
@@ -133,14 +163,62 @@ done
 
 #cat em
 cat *smorfer.gtf *balrog.gtf *prodigal.gtf *gms2.gtf > annotated.gtf
+cat ../Salmonella_list/*smorfer.gtf ../Salmonella_list/*balrog.gtf ../Salmonella_list/*prodigal.gtf ../Salmonella_list/*gms2.gtf >> annotated.gtf
+cat ../Mycobacterium_list/*smorfer.gtf ../Mycobacterium_list/*balrog.gtf ../Mycobacterium_list/*prodigal.gtf ../Mycobacterium_list/*gms2.gtf >> annotated.gtf
 
-#Exclude protogenes that share a stop codon with any of the annotated genes
-bedtools intersect -wo -s -a Ecoli_all_protogenes.gtf -b Ecoli_all_annotated.gtf | awk -F '\t' '($7==$16&&$7=="+")' | awk -F '\t' '($5==$14)' | cut -f9 | cut -f 2 -d "\"" | sort -u > Ecoli_protogenes_tobeexcluded.txt
-bedtools intersect -wo -s -a Ecoli_all_protogenes.gtf -b Ecoli_all_annotated.gtf | awk -F '\t' '($7==$16&&$7=="-")' | awk -F '\t' '($4==$13)' | cut -f9 | cut -f 2 -d "\"" | sort -u >> Ecoli_protogenes_tobeexcluded.txt
+bedtools intersect -wo -s -a all_protogenes.gtf -b annotated.gtf | awk -F '\t' '($7==$16&&$7=="+")' | awk -F '\t' '($5==$14)' | cut -f9 | cut -f 2 -d "\"" | sort -u > all_protogenes_tobeexcluded.txt
+bedtools intersect -wo -s -a all_protogenes.gtf -b annotated.gtf | awk -F '\t' '($7==$16&&$7=="-")' | awk -F '\t' '($4==$13)' | cut -f9 | cut -f 2 -d "\"" | sort -u >> all_protogenes_tobeexcluded.txt
 
 #Final proto-genes:
-sed "s/.*/\"&\"/g" Ecoli_protogenes_tobeexcluded.txt | grep -vf - Ecoli_all_protogenes.gtf > Ecoli_all_protogenes_final.gtf
+
+sed "s/.*/\"&\"/g" all_protogenes_tobeexcluded.txt | grep -vf- all_protogenes.gtf | egrep -i "leaderless|riboret" > Mycobacterium_protogenes.final.gtf
+sed "s/.*/\"&\"/g" all_protogenes_tobeexcluded.txt | grep -vf- all_protogenes.gtf | egrep -i "Giess|ST_Ndah|Venturini|Fijalkowski" > Salmonella_protogenes.final.gtf
+sed "s/.*/\"&\"/g" all_protogenes_tobeexcluded.txt | grep -vf- all_protogenes.gtf | egrep -i "Stringer|VanOrsdel|Weaver|Nakahigashi|EC_Ndah|\"NC_|\"NZ_" > Ecoli_protogenes.final.gtf
+
+#Final annotated genes are non-redundant versions of genes annotated from the same strains whence the proto-genes came
+
+egrep "^NZ_|CP001509.3|NC_000913.3|REL606|U00096.2" annotated.gtf > Ecoli_annotated.gtf
+egrep "CP001363.1|FQ312003.1|HE654724.1|HE654725.1|HE654726.1" annotated.gtf > Salmonella_annotated.gtf
+egrep "NC_99" annotated.gtf > Mycobacterium_annotated.gtf
+
+cat CP001509_3.fna ECOR_11_genome.faa ECOR_27_genome.faa ECOR_37_genome.faa REL606.fasta sequence_RS.fasta sequence_oldMG1655.fasta | sed 's/\([ACGT]\)\(>\)/\1\n\2/g' > Ecoli_all_genomes.faa
+cat Ecoli_annotated.gtf | grep -v "#" | gtf2bed | bedtools getfasta -s -name -fi Ecoli_all_genomes.faa -bed - > Ecoli_annotated.faa
+
+cat ../Salmonella_list/GCA_000210855.2_ASM21085v2_genomic.fna ../Salmonella_list/Salmonella_14028s.fasta | sed 's/\([ACGT]\)\(>\)/\1\n\2/g' > Salmonella_all_genomes.faa
+cat Salmonella_annotated.gtf | grep -v "#" | gtf2bed | bedtools getfasta -s -name -fi Salmonella_all_genomes.faa -bed - > Salmonella_annotated.faa
+
+cat ../Mycobacterium_list/H37Rv.fna > Mycobacterium_all_genomes.faa
+cat Mycobacterium_annotated.gtf | grep -v "#" | gtf2bed | bedtools getfasta -s -name -fi Mycobacterium_all_genomes.faa -bed - > Mycobacterium_annotated.faa
+
+#non-red with usearch
+
+for i in Ecoli Salmonella Mycobacterium
+do
+usearch -sortbylength "$i"_annotated.faa -fastaout "$i"_annotated.sorted.faa -minseqlength 1
+usearch -cluster_smallmem "$i"_annotated.sorted.faa -id 0.9 -centroids "$i"_annotated.nr.faa -uc "$i"_clusters.uc
+done
+
+
+
+
+
+#for i in Ecoli Salmonella Mycobacterium
+#do
+#for j in $(cut -f1 "$i"_annotated.gtf | sort -u)
+#do
+#awk -F '\t' '($7=="+")' "$i"_annotated.gtf | cut -f5 | sort -u > "$i"_annotated_stops_plus
+#awk -F '\t' '($7=="-")' "$i"_annotated.gtf | cut -f4 | sort -u > "$i"_annotated_stops_minus
+#done
+#done
+
+#for j in $(cat "$i"_annotated_stops_plus); do awk -v var="$j" -F '\t' '($7=="+"&&$5==var)' "$i"_annotated.gtf | sort -nk 4 | head -1; done > "$i"_annotated.nr.gtf
+#awk -F '\t' '($7=="-")' "$i"_annotated.gtf | cut -f4 | sort -u > "$i"_annotated_stops_minus
+#for j in $(cat "$i"_annotated_stops_minus); do awk -v var="$j" -F '\t' '($7=="-"&&$4==var)' "$i"_annotated.gtf | sort -nrk 5 | head -1; done >> "$i"_annotated.nr.gtf
+#done
+
+#cat "$i"_annotated.nr.gtf | gtf2bed | bedtools getfasta -s -name -fi "$i".faa -bed - | seqkit rmdup -s - | seqkit fx2tab | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/^/>/g" | sed "s/\t$//g" | sed "s/\t/\n/g" > "$i"_all_annotated.nr.seqkit.faa
+#cat "$i"_annotated.nr.gtf | gtf2bed | bedtools getfasta -s -name -fi "$i".faa -bed - | seqkit rmdup -s - | grep "^>" | tr -d ">" | cut -f1 -d "(" | sed "s/.*/\"&\"/g" | grep -F -f - "$i"_annotated.nr.gtf > "$i"_all_annotated.nr.seqkit.gtf
 
 #Get their sequences and proteins
-cat Ecoli_all_protogenes_final.gtf | gtf2bed | bedtools getfasta -s -name -fi all_K12_variants.faa -bed - > Ecoli_all_protogenes_final.faa
-/stor/work/Ochman/hassan/tools/faTrans -stop Ecoli_all_protogenes_final.faa Ecoli_all_protogenes_final.prot.faa
+#cat Ecoli_all_protogenes_final.gtf | gtf2bed | bedtools getfasta -s -name -fi all_K12_variants.faa -bed - > Ecoli_all_protogenes_final.faa
+#/stor/work/Ochman/hassan/tools/faTrans -stop Ecoli_all_protogenes_final.faa Ecoli_all_protogenes_final.prot.faa
