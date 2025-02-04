@@ -198,7 +198,15 @@ usearch -sortbylength "$i"_annotated.faa -fastaout "$i"_annotated.sorted.faa -mi
 usearch -cluster_smallmem "$i"_annotated.sorted.faa -id 0.9 -centroids "$i"_annotated.nr.faa -uc "$i"_clusters.uc
 done
 
-
+#Final proto- and annotated-query lists
+for i in Ecoli Salmonella Mycobacterium
+do
+cat "$i"_protogenes.final.gtf | grep -v "#" | gtf2bed | bedtools getfasta -s -name -fi "$i"_all_genomes.faa -bed - > "$i"_protogenes.final.cds.faa
+/stor/work/Ochman/hassan/tools/faTrans -stop "$i"_protogenes.final.cds.faa "$i"_protogenes.final.prot.faa
+/stor/work/Ochman/hassan/tools/faTrans -stop "$i"_annotated.nr.faa "$i"_annotated.nr.prot.faa
+cat "$i"_protogenes.final.prot.faa "$i"_annotated.nr.prot.faa > "$i"_protein_queryfile.faa
+cat "$i"_protogenes.final.cds.faa "$i"_annotated.nr.faa > "$i"_CDS_queryfile.faa
+done
 
 
 
