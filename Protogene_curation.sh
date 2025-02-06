@@ -206,6 +206,7 @@ cat "$i"_protogenes.final.gtf | grep -v "#" | gtf2bed | bedtools getfasta -s -na
 /stor/work/Ochman/hassan/tools/faTrans -stop "$i"_annotated.nr.faa "$i"_annotated.nr.prot.faa
 cat "$i"_protogenes.final.prot.faa "$i"_annotated.nr.prot.faa > "$i"_protein_queryfile.faa
 cat "$i"_protogenes.final.cds.faa "$i"_annotated.nr.faa > "$i"_CDS_queryfile.faa
+cat "$i"_annotated.gtf "$i"_protogenes.final.gtf > "$i"_queryfile.gtf
 done
 
 
