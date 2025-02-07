@@ -231,3 +231,8 @@ done
 #Get their sequences and proteins
 #cat Ecoli_all_protogenes_final.gtf | gtf2bed | bedtools getfasta -s -name -fi all_K12_variants.faa -bed - > Ecoli_all_protogenes_final.faa
 #/stor/work/Ochman/hassan/tools/faTrans -stop Ecoli_all_protogenes_final.faa Ecoli_all_protogenes_final.prot.faa
+
+#Final list of MS validated proteins after taking out excludes:
+cd /stor/work/Ochman/hassan/protogene_extension/comparative_genomics
+awk -F '\t' '($16<0.001&&$5>60)' Ecoli_vs_pangenome_annotated.tsv | cut -f1 | sort -u | cut -f1 -d "(" > testy
+egrep -iv "prodigal|smorfer|gms2|balrog" Ecoli_queryfile.gtf | egrep -iv "Stringer|Weaver|Vanorsdel|Ndah|Nakahigashi" | cut -f2 -d "\"" | sort -u | grep -v -F -f testy - > 40_final_MS_protogenes.txt
