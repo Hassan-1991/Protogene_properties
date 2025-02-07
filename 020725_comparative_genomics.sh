@@ -207,3 +207,23 @@ done
 #1. Collapse all varieties of prox and gene flanks into one file per gene cluster:
 
 for i in $(ls *intervalinfo | cut -f1,2 -d "_" | sort -u); do ls "$i"_*intervalinfo | sed "s/^/cat /g" | bash >> "$i"_compiled_intervalinfo.txt; done
+
+#################
+
+#Tagging with taxonomic information/presence-absence:
+
+#Intra-genus:
+cat Ecoli_vs_noncoliEscherichia_annotated.tsv | awk -F '\t' '($5>60&&$16<0.001)' | grep -F -f Ecoli_step1_genusspecific_ORFan.txt | cut -f-2 | rev | cut -f2- -d "_" | rev > Ecoli_intragenus_distribution.interim.txt
+cat Ecoli_vs_noncoliEscherichia_ORFs.tsv | awk -F '\t' '($5>60&&$16<0.001)' | grep -F -f Ecoli_step1_genusspecific_ORFan.txt | cut -f -2 | rev | cut -f2- -d "." | rev >> Ecoli_intragenus_distribution.interim.txt
+#Pangenome:
+cat Ecoli_vs_pangenome_annotated.tsv | awk -F '\t' '($5>60&&$16<0.001)' | grep -F -f Ecoli_step1_genusspecific_ORFan.txt | cut -f1 -d "@" > Ecoli_pangenome_distribution.interim.txt
+cat Ecoli_vs_pangenome_ORFs.tsv | awk -F '\t' '($5>60&&$16<0.001)' | grep -F -f Ecoli_step1_genusspecific_ORFan.txt | rev | cut -f2- -d "_" | rev >> Ecoli_pangenome_distribution.interim.txt
+
+cat Ecoli_intragenus_distribution.interim.txt Ecoli_pangenome_distribution.interim.txt | sort -u | sed "s/\t/,/g" | sort -k2 -t ',' > Ecoli_intragenus_pangenome_distribution.interim.csv
+
+cat Ecoli_intragenus_pangenome_distribution.interim.csv | join -t ',' -1 2 -2 2 - /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Ecoli_intragenus_pangenome_contig_taxa.csv
+
+#sort -u pangenome_distribution_interim_1.txt | sort -k2 | join -1 2 -2 1 - all_contig_protein_taxonomy.tsv > pangenome_distribution_interim_2.txt
+
+#Put them together:
+cat intragenus_distribution_interim_2.txt pangenome_distribution_interim_2.txt | cut -f2,3 -d " " | sort -u | sed 's/ [^ ]*@/ Ecoli@/' > presence_absence.interim.tsv
