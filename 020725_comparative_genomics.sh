@@ -133,6 +133,18 @@ done
 
 #Regular blastn:
 
+blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Escherichia_db/Escherichia_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_extragenus_regular_blastn
+blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Escherichia_db/Ecoli_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_intragenus_regular_blastn
+blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Salmonella_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Salmonella_extragenus_regular_blastn
+blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Enterica_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Salmonella_intragenus_regular_blastn
+blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Mycobacterium_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Mycobacterium_extragenus_regular_blastn
+blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Tuberculosis_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Mycobacterium_intragenus_regular_blastn
+blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/work/Ochman/hassan/Ecoli_pangenome/103024_updated_pipeline/backup/all_450_genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_pangenome_regular_blastn
+blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Salmonella_pangenome.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Salmonella_pangenome_regular_blastn
+blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Mycobacterium_pangenome.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Mycobacterium_pangenome_regular_blastn
+
+blastn -query - -db "$i"_interval -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out "$i"_interval_blastn -word_size 7
+
 for i in Ecoli Salmonella Mycobacterium
 do
 cut -f1 -d "(" "$i"_step1_genusspecific_ORFan.txt | sed "s/.*/\"&\"/g" | grep -F -f - "$i"_queryfile.gtf | gtf2bed | bedtools getfasta -s -name -fi ../Ecoli_list/"$i"_all_genomes.faa -bed - | sed "s/BALROG/balrog/g" | sed "s/GMS2/gms2/g" | sed "s/PRODIGAL/prodigal/g" | sed "s/SMORFER/smorfer/g" > "$i"_step1_genusspecific_ORFan.CDS.faa
@@ -206,11 +218,20 @@ done
 
 #1. Collapse all varieties of prox and gene flanks into one file per gene cluster:
 
-for i in $(ls *intervalinfo | cut -f1,2 -d "_" | sort -u); do ls "$i"_*intervalinfo | sed "s/^/cat /g" | bash >> "$i"_compiled_intervalinfo.txt; done
+for i in $(ls Ecoli*intervalinfo | rev | cut -f3- -d "_" | rev | sort -u); do ls "$i"_*intervalinfo | sed "s/^/cat /g" | bash >> "$i"_compiled_intervalinfo.txt; done
 
-#################
+#2. Add in names to each intervalinfo file using the file all_contig_protein_taxonomy.tsv, which has been prepared using the code in assigning_conservation_to_genes.sh
+cd /stor/work/Ochman/hassan/protogene_extension/comparative_genomics/flanks
+cat Ecoli_*info | cut -f1 -d " " | sort -u | sort -k1 | join -1 1 -2 2 - /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Ecoli_contig_taxonomy.intervalinfo.tsv | sort -u | sed "s/ /\t/g" | awk -F '\t' '($2!="Escherichia")' > Ecoli_intervalinfo_taxonomy.tsv
 
-#Tagging with taxonomic information/presence-absence:
+for i in $(ls *_compiled_intervalinfo.txt | rev | cut -f3- -d "_" | rev | sort -u)
+do
+sort -k1 "$i"_compiled_intervalinfo.txt -o "$i"_compiled_intervalinfo.txt
+cut -f1 -d " " "$i"_compiled_intervalinfo.txt | sort -u > temp
+grep -w -F -f temp Ecoli_intervalinfo_taxonomy.tsv | sort -k1 | join -1 1 -2 1 - "$i"_compiled_intervalinfo.txt | sed 's/ [^ ]*@/ Ecoli@/' > "$i"_compiled_intervalinfo.taxa.txt
+done
+
+#3. Tagging with taxonomic information/presence-absence:
 
 #Intra-genus:
 cat Ecoli_vs_noncoliEscherichia_annotated.tsv | awk -F '\t' '($5>60&&$16<0.001)' | grep -F -f Ecoli_step1_genusspecific_ORFan.txt | cut -f-2 | rev | cut -f2- -d "_" | rev > Ecoli_intragenus_distribution.interim.txt
@@ -219,11 +240,27 @@ cat Ecoli_vs_noncoliEscherichia_ORFs.tsv | awk -F '\t' '($5>60&&$16<0.001)' | gr
 cat Ecoli_vs_pangenome_annotated.tsv | awk -F '\t' '($5>60&&$16<0.001)' | grep -F -f Ecoli_step1_genusspecific_ORFan.txt | cut -f1 -d "@" > Ecoli_pangenome_distribution.interim.txt
 cat Ecoli_vs_pangenome_ORFs.tsv | awk -F '\t' '($5>60&&$16<0.001)' | grep -F -f Ecoli_step1_genusspecific_ORFan.txt | rev | cut -f2- -d "_" | rev >> Ecoli_pangenome_distribution.interim.txt
 
-cat Ecoli_intragenus_distribution.interim.txt Ecoli_pangenome_distribution.interim.txt | sort -u | sed "s/\t/,/g" | sort -k2 -t ',' > Ecoli_intragenus_pangenome_distribution.interim.csv
-
-cat Ecoli_intragenus_pangenome_distribution.interim.csv | join -t ',' -1 2 -2 2 - /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Ecoli_intragenus_pangenome_contig_taxa.csv
-
-#sort -u pangenome_distribution_interim_1.txt | sort -k2 | join -1 2 -2 1 - all_contig_protein_taxonomy.tsv > pangenome_distribution_interim_2.txt
-
 #Put them together:
-cat intragenus_distribution_interim_2.txt pangenome_distribution_interim_2.txt | cut -f2,3 -d " " | sort -u | sed 's/ [^ ]*@/ Ecoli@/' > presence_absence.interim.tsv
+cat Ecoli_intragenus_distribution.interim.txt Ecoli_pangenome_distribution.interim.txt | sort -k2 | join -1 2 -2 2 - /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Ecoli_intragenus_pangenome_contig_taxa.tsv | sort -u | sed 's/ [^ ]*@/ Ecoli@/' | sed "s/ /\t/g" > Ecoli_intragenus_pangenone_presence_absence.tsv
+
+for i in $(ls *_compiled_intervalinfo.txt | rev | cut -f3- -d "_" | rev | sort -u)
+do
+value=$(echo $i | sed "s/Ecoli_//g" | sed "s/.*/\"&\"/g" | grep -F -f - ../Ecoli_queryfile.gtf | awk -F '\t' '{print $5-$4+1}')
+sed -i "s/$/ $value/" "$i"_compiled_intervalinfo.taxa.txt
+echo $i | sed "s/Ecoli_//g" | sed "s/$/\(/g" | grep -f - ../Ecoli_intragenus_pangenone_presence_absence.tsv | cut -f3 | grep -v -w -F -f - "$i"_compiled_intervalinfo.taxa.txt | awk '(($5>($7*0.5))&&($5<10000))' > "$i"_compiled_intervalinfo.taxa.final.txt
+done
+
+find . -type f -empty -delete
+
+#Figure out different routes of analysis for different gene sets
+
+1. E-coli proto-genes: de novo analysis
+
+2. All other categories: Traceability to outgroups (outside genus for genus-specific, outside species for species-specific)
+  a) Ecoli proto-genes
+  b) Ecoli, Myc, Sal species-specific genes
+  c) Ecoli, Myc, Sal genus-specific genes
+
+
+
+
