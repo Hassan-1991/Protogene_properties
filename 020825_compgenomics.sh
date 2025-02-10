@@ -91,7 +91,15 @@ grep -vf "$i"_step1_genusspecific_nonORFan.txt "$i"_protein_queryfile.faa | grep
 faSomeRecords "$i"_protein_queryfile.faa "$i"_step1_genusspecific_ORFan.txt "$i"_step1_genusspecific_ORFan.faa
 done
 
+#Goal: identify list of genus- and species-specific ORFans
+#Species-specific ORFans:
 
+for i in Ecoli Salmonella Mycobacterium
+do
+cat "$i"_vs_non*annotated.tsv "$i"_vs_non*ORFs.tsv | awk -F '\t' '($5>60&&$16<0.001)' | cut -f1 | sort -u > "$i"_step1_speciespecific_nonORFan.txt
+grep -vf "$i"_step1_speciespecific_nonORFan.txt "$i"_step1_genusspecific_ORFan.txt > "$i"_step1_speciespecific_ORFan.txt
+faSomeRecords "$i"_protein_queryfile.faa "$i"_step1_speciespecific_ORFan.txt "$i"_step1_speciesspecific_ORFan.faa
+done
 
 for i in Ecoli Salmonella Mycobacterium
 do
@@ -190,6 +198,71 @@ echo $i | sed "s/$/(/g" | grep -f - Mycobacterium_proxflanks_targets.txt | sed "
 grep -w -F -f Mycobacterium_"$i"_proxflanks_targetlist.txt Mycobacterium_prox*blastn | cut -f2- -d ":" | grep "$i(" | cut -f2- -d "_" | awk -F '\t' '{OFS=""}{print $13,"%",$14,"%",$10,"\t",$2}' | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/%plus, /%/g" | sed "s/%minus, /%/g" | sed "s/%plus/\tplus/g" | sed "s/%minus/\tminus/g" | sed "s/%/,/g" | sed "s/\t/,/g" | sed "s/ //g" | awk -F',' '{identifier = $1; values = $2 "," $3 "," $4 "," $5; split(values, array, ","); asort(array); middle1 = array[2]; middle2 = array[3]; difference = middle2 - middle1; if (difference >= 0) { print identifier, middle1, middle2, difference, $6; } else { print identifier, middle2, middle1, -difference, $6; } }' > Mycobacterium_"$i"_proxflanks_intervalinfo
 done
 
+
+for i in Ecoli Salmonella Mycobacterium
+do
+mkdir "$i"_speciesspecific_flanks
+mkdir "$i"_genusspecific_flanks
+cut -f1 -d "(" ../"$i"_step1_speciespecific_ORFan.txt | sed "s/^/"$i"_/g" | sed "s/$/_*intervalinfo "$i"_speciesspecific_flanks/g" | sed "s/^/cp /g" | bash
+grep -v -F -f ../"$i"_step1_speciespecific_ORFan.txt ../"$i"_step1_genusspecific_ORFan.txt | cut -f1 -d "(" | sed "s/^/"$i"_/g" | sed "s/$/_*intervalinfo "$i"_genusspecific_flanks/g" | sed "s/^/cp /g" | bash
+done
+
+cd Ecoli_speciespecific_flanks
+for i in $(ls *intervalinfo | rev | cut -f3- -d "_" | rev | sort -u); do ls "$i"_*intervalinfo | sed "s/^/cat /g" | bash >> "$i"_compiled_intervalinfo.txt; done
+#Get rid of pangenome IDs:
+for i in $(ls *_compiled_intervalinfo.txt | rev | cut -f3- -d "_" | rev | sed "s/Ecoli_//g")
+do
+grep "@" ../Ecoli_intervalinfo_taxonomy.tsv | cut -f1 | grep -v -w -F -f - Ecoli_"$i"_compiled_intervalinfo.txt > Ecoli_"$i"_compiled_intervalinfo.pangenomeremoved.txt
+done
+
+find . -type f -empty -delete
+
+#Remove very short or very long interval sequences
+for i in $(ls *_compiled_intervalinfo.pangenomeremoved.txt | cut -f2- -d "_" | rev | cut -f3- -d "_" | rev)
+do
+value=$(echo $i | sed "s/Ecoli_//g" | sed "s/.*/\"&\"/g" | grep -F -f - ../../Ecoli_queryfile.gtf | awk -F '\t' '{print $5-$4+1}')
+sed "s/$/ $value/" Ecoli_"$i"_compiled_intervalinfo.pangenomeremoved.txt | awk '(($4>($6*0.5))&&($4<10000))' > Ecoli_"$i"_compiled_intervalinfo.final.txt
+done
+
+#Extract sequences:
+for variable in $(ls Ecoli*_compiled_intervalinfo.final.txt | cut -f2- -d "_" | rev | cut -f 3- -d "_" | rev)
+do
+    command="grep \"plus\" Ecoli_${variable}_compiled_intervalinfo.final.txt | awk '{OFS=\"\"}{print \"samtools faidx /stor/scratch/Ochman/hassan/100724_Complete_Genomes/individual_genomes/\",\$1,\" \",\$1,\":\",\$2,\"-\",\$3}' | sed \"s/\$/ >> Ecoli_${variable}_interval.faa/g\" && grep \"minus\" Ecoli_${variable}_compiled_intervalinfo.final.txt | awk '{OFS=\"\"}{print \"samtools faidx -i /stor/scratch/Ochman/hassan/100724_Complete_Genomes/individual_genomes/\",\$1,\" \",\$1,\":\",\$2,\"-\",\$3}' | sed \"s/\$/ >> Ecoli_${variable}_interval.faa/g\""
+    output_file=Ecoli_"${variable}_joint_samtools.sh"
+    bash -c "$command" > "$output_file"
+done
+
+conda deactivate
+ls *_joint_samtools.sh | sed "s/^/bash /g" > running.sh
+
+for i in $(ls *_interval.faa | cut -f2- -d "_" | rev | cut -f2- -d "_" | rev)
+do
+makeblastdb -in Ecoli_"$i"_interval.faa -dbtype nucl -out Ecoli_"$i"_interval
+done
+
+for i in $(ls *_interval.faa | cut -f2- -d "_" | rev | cut -f2- -d "_" | rev)
+do
+ls Ecoli_"$i"_interval.faa | cut -f2- -d "_" | rev | cut -f2- -d "_" | rev | sed "s/$/(/g" | grep --no-group-separator -A1 -f - ../../Ecoli_step1_genusspecific_ORFan.CDS.faa |
+blastn -query - -db Ecoli_"$i"_interval -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_"$i"_interval_blastn -word_size 7
+done
+
+export PERL5LIB=/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/lib/
+for i in $(ls *_interval_blastn | cut -f2- -d "_" | rev | cut -f3- -d "_" | rev)
+do
+echo "/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/bin/mview -in blast Ecoli_${i}_interval_blastn > Ecoli_${i}_blastn_mviewed"
+done > running.sh
+
+for i in $(ls *_blastn_mviewed | cut -f2- -d "_" | rev | cut -f3- -d "_" | rev)
+do
+querylength=$(echo $i | sed "s/$/\(/g" | grep -A1 -f - ../../Ecoli_step1_genusspecific_ORFan.CDS.faa | grep -v "^>" | awk '{print length($0)}')
+ratio=$(tail -n+8 Ecoli_"$i"_blastn_mviewed | head -1 | awk '{print $(NF-1)}' | sed "s/:/\t/g" | awk -v var=$querylength -F '\t' '{print ($2-$1+1)/var}')
+if (( $(echo "$ratio > 0.5" | bc -l) ))
+then
+tail -n+9 Ecoli_"$i"_blastn_mviewed | head -n-3 | awk '{print $2,$(NF-4),$NF}' | sed "s/%//g" | awk '($2>50)' | awk '{print $1,$3}' | sed "s/^/>/g" | sed "s/ /\n/g" | linear > Ecoli_"$i"_blastn_seq.faa
+tail -n+8 Ecoli_"$i"_blastn_mviewed | head -n-3 | sed "1s/^/g /g" | awk '{print $2,$NF}' | sed "s/^/>/g" | sed "s/ /\n/g" | linear | head -2 >> Ecoli_"$i"_blastn_seq.faa
+fi
+done
+
 #geneflanks:
 for i in Ecoli Salmonella Mycobacterium
 do
@@ -218,7 +291,8 @@ done
 
 #1. Collapse all varieties of prox and gene flanks into one file per gene cluster:
 
-for i in $(ls Ecoli*intervalinfo | rev | cut -f3- -d "_" | rev | sort -u); do ls "$i"_*intervalinfo | sed "s/^/cat /g" | bash >> "$i"_compiled_intervalinfo.txt; done
+for i in $(ls *intervalinfo | rev | cut -f3- -d "_" | rev | sort -u); do ls "$i"_*intervalinfo | sed "s/^/cat /g" | bash >> "$i"_compiled_intervalinfo.txt; done
+
 
 #2. Add in names to each intervalinfo file using the file all_contig_protein_taxonomy.tsv, which has been prepared using the code in assigning_conservation_to_genes.sh
 cd /stor/work/Ochman/hassan/protogene_extension/comparative_genomics/flanks
@@ -260,3 +334,51 @@ find . -type f -empty -delete
   a) Ecoli proto-genes
   b) Ecoli, Myc, Sal species-specific genes
   c) Ecoli, Myc, Sal genus-specific genes
+
+#Let's do Ecoli denovo genes first to get one thing out of the way
+#Tag mafft input files with these:
+
+#Genus-specific
+
+awk '/^Query=/ {close(file); match($0, / (.*)\(/, arr); file = arr[1] "_blastn"} {if (file) print > file}' Ecoli_extragenus_regular_blastn
+grep "No hits found" *_blastn | rev | cut -f2- -d "_" | rev | sed "s/^/rm /g" | sed "s/$/\*/g" | bash
+
+header=$(head -14 Ecoli_extragenus_regular_blastn)
+footer=$(tail -11 Ecoli_extragenus_regular_blastn)
+for file in $(ls *_blastn | grep -v "regular"); do
+    # Prepend the header to the file
+    { echo "$header"; cat "$file"; } > temp_file && mv temp_file "$file"
+    
+    # Append the footer to the file
+    { cat "$file"; echo "$footer"; } > temp_file && mv temp_file "$file"
+done
+
+export PERL5LIB=/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/lib/
+
+for i in $(ls *_blastn | grep -v "regular" | rev | cut -f2- -d "_" | rev)
+do
+echo "/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/bin/mview -in blast ${i}_blastn > ${i}_blastn_mviewed"
+done > running.sh
+
+seqkit fx2tab ../Ecoli_CDS_queryfile.faa | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" > Ecoli_CDS_queryfile.faa
+
+for i in $(ls *mviewed | grep -v "regular" | rev | cut -f3- -d "_" | rev)
+do
+querylength=$(echo $i | sed "s/$/(/g" | grep -F -A1 -f - Ecoli_CDS_queryfile.faa | grep -v "^>" | awk '{print length($0)}')
+ratio=$(tail -n+8 "$i"_blastn_mviewed | head -1 | awk '{print $(NF-1)}' | sed "s/:/\t/g" | awk -v var=$querylength -F '\t' '{print ($2-$1+1)/var}')
+if (( $(echo "$ratio > 0.5" | bc -l) ))
+then
+tail -n+9 "$i"_blastn_mviewed | head -n-3 | awk '{print $2,$(NF-4),$NF}' | sed "s/%//g" | awk '($2>50)' | awk '{print $1,$3}' | sed "s/^/>/g" | sed "s/ /\n/g" | linear > "$i"_blastn_seq.faa
+tail -n+8 "$i"_blastn_mviewed | head -n-3 | sed "1s/^/g /g" | awk '{print $2,$NF}' | sed "s/^/>/g" | sed "s/ /\n/g" | linear | head -2 | seqkit fx2tab | cut -f2- -d "@" | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/^/>/g" | sed "s/\t$//g" | sed "s/\t/\n/g" >> "$i"_blastn_seq.faa
+fi
+done
+
+egrep -v "Escherichia|@" ../../all_contig_protein_taxonomy* > genus_contig_protein_taxonomy.tsv
+for i in $(ls *_blastn_seq.faa | cut -f1,2 -d "_")
+do
+grep "^>" "$i"_blastn_seq.faa | tr -d ">" | head -n-1 | sort -u | grep -w -F -f - genus_contig_protein_taxonomy.tsv | sort -k1 > interim
+seqkit fx2tab "$i"_blastn_seq.faa | sort -k1 | join -1 1 -2 1 - interim | awk '{print $1,$2":"$3}' | awk '!seen[$2]++' | sed "s/:/ /g" | awk '{print $3":"$1"\t"$2}' | sed "s/^/>/g" | sed "s/\t/\n/g" > "$i"_mafft_input.faa
+tail -2 "$i"_blastn_seq.faa >> "$i"_mafft_input.faa
+grep -A1 "$i" ../../genus_specific_ORFans_largeenoughcontigs.CDS.faa | seqkit fx2tab | sed "s/\t$//g" | cut -f2- -d "@" | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/^/>/g" | sed "s/>/>FULL_/g" | sed "s/\t/\n/g" >> "$i"_mafft_input.faa
+done
+
