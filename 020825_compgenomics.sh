@@ -91,9 +91,6 @@ grep -vf "$i"_step1_genusspecific_nonORFan.txt "$i"_protein_queryfile.faa | grep
 faSomeRecords "$i"_protein_queryfile.faa "$i"_step1_genusspecific_ORFan.txt "$i"_step1_genusspecific_ORFan.faa
 done
 
-#Goal: identify list of genus- and species-specific ORFans
-#Species-specific ORFans:
-
 for i in Ecoli Salmonella Mycobacterium
 do
 cat "$i"_vs_non*annotated.tsv "$i"_vs_non*ORFs.tsv | awk -F '\t' '($5>60&&$16<0.001)' | cut -f1 | sort -u > "$i"_step1_speciespecific_nonORFan.txt
@@ -103,11 +100,19 @@ done
 
 for i in Ecoli Salmonella Mycobacterium
 do
+cut -f1 -d "(" "$i"_step1_genusspecific_ORFan.txt | sed "s/.*/\"&\"/g" | grep -F -f - "$i"_queryfile.gtf | gtf2bed | bedtools getfasta -s -name -fi ../Ecoli_list/"$i"_all_genomes.faa -bed - | sed "s/BALROG/balrog/g" | sed "s/GMS2/gms2/g" | sed "s/PRODIGAL/prodigal/g" | sed "s/SMORFER/smorfer/g" > "$i"_step1_genusspecific_ORFan.CDS.faa
+done
+
+#PROTEIN SEARCH PHASE - DONE#
+
+#FLANK PHASE
+
+for i in Ecoli Salmonella Mycobacterium
+do
 grep -i "prodigal" ../Ecoli_list/"$i"_annotated.gtf | bedtools sort -i | sed "s/PRODIGAL/prodigal/g" > "$i"_prodigal_annotated.gtf
 done
 
 #Get they flanks
-#gtfs
 #proximal
 for i in Ecoli Salmonella Mycobacterium
 do
@@ -139,37 +144,6 @@ blastn -query Salmonella_"$i"flanks.faa -db /stor/scratch/Ochman/hassan/100724_C
 blastn -query Mycobacterium_"$i"flanks.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Mycobacterium_pangenome.genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Mycobacterium_"$i"flanks_pangenome_blastn
 done
 
-#Regular blastn:
-
-blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Escherichia_db/Escherichia_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_extragenus_regular_blastn
-blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Escherichia_db/Ecoli_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_intragenus_regular_blastn
-blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Salmonella_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Salmonella_extragenus_regular_blastn
-blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Enterica_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Salmonella_intragenus_regular_blastn
-blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Mycobacterium_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Mycobacterium_extragenus_regular_blastn
-blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Tuberculosis_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Mycobacterium_intragenus_regular_blastn
-blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/work/Ochman/hassan/Ecoli_pangenome/103024_updated_pipeline/backup/all_450_genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_pangenome_regular_blastn
-blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Salmonella_pangenome.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Salmonella_pangenome_regular_blastn
-blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Mycobacterium_pangenome.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Mycobacterium_pangenome_regular_blastn
-
-blastn -query - -db "$i"_interval -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out "$i"_interval_blastn -word_size 7
-
-for i in Ecoli Salmonella Mycobacterium
-do
-cut -f1 -d "(" "$i"_step1_genusspecific_ORFan.txt | sed "s/.*/\"&\"/g" | grep -F -f - "$i"_queryfile.gtf | gtf2bed | bedtools getfasta -s -name -fi ../Ecoli_list/"$i"_all_genomes.faa -bed - | sed "s/BALROG/balrog/g" | sed "s/GMS2/gms2/g" | sed "s/PRODIGAL/prodigal/g" | sed "s/SMORFER/smorfer/g" > "$i"_step1_genusspecific_ORFan.CDS.faa
-done
-
-blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Escherichia_db/Escherichia_excluded.genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Ecoli_step1_genusspecific_ORFan_extragenus_blastn
-blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Escherichia_db/Ecoli_excluded.genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Ecoli_step1_genusspecific_ORFan_intragenus_blastn
-blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Salmonella_excluded.genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Salmonella_step1_genusspecific_ORFan_extragenus_blastn
-blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Enterica_excluded.genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Salmonella_step1_genusspecific_ORFan_intragenus_blastn
-blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Mycobacterium_excluded.genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Mycobacterium_step1_genusspecific_ORFan_extragenus_blastn
-blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Tuberculosis_excluded.genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Mycobacterium_step1_genusspecific_ORFan_intragenus_blastn
-
-#Pangenome
-blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/work/Ochman/hassan/Ecoli_pangenome/103024_updated_pipeline/backup/all_450_genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Ecoli_step1_genusspecific_ORFan_pangenome_blastn
-blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Salmonella_pangenome.genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Salmonella_step1_genusspecific_ORFan_pangenome_blastn
-blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Mycobacterium_pangenome.genomes -outfmt '6 qseqid sseqid pident nident qcovhsp length mismatch gapopen gaps sstrand qstart qend sstart send qlen slen evalue bitscore' -num_threads 104 -max_target_seqs 100000 -max_hsps 1 -out Mycobacterium_step1_genusspecific_ORFan_pangenome_blastn
-
 #targets:
 for i in Ecoli Salmonella Mycobacterium
 do
@@ -198,6 +172,30 @@ echo $i | sed "s/$/(/g" | grep -f - Mycobacterium_proxflanks_targets.txt | sed "
 grep -w -F -f Mycobacterium_"$i"_proxflanks_targetlist.txt Mycobacterium_prox*blastn | cut -f2- -d ":" | grep "$i(" | cut -f2- -d "_" | awk -F '\t' '{OFS=""}{print $13,"%",$14,"%",$10,"\t",$2}' | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/%plus, /%/g" | sed "s/%minus, /%/g" | sed "s/%plus/\tplus/g" | sed "s/%minus/\tminus/g" | sed "s/%/,/g" | sed "s/\t/,/g" | sed "s/ //g" | awk -F',' '{identifier = $1; values = $2 "," $3 "," $4 "," $5; split(values, array, ","); asort(array); middle1 = array[2]; middle2 = array[3]; difference = middle2 - middle1; if (difference >= 0) { print identifier, middle1, middle2, difference, $6; } else { print identifier, middle2, middle1, -difference, $6; } }' > Mycobacterium_"$i"_proxflanks_intervalinfo
 done
 
+#geneflanks:
+for i in Ecoli Salmonella Mycobacterium
+do
+cat "$i"_gene*blastn | sort -u > "$i"_geneflanks_allblastn #for later
+done
+
+#Ecoli
+for i in $(cut -f 1 Ecoli_geneflanks_targets.txt)
+do
+echo $i | sed "s/$/\t/g" | grep -F -f - Ecoli_geneflanks_targets.txt | sed "s/,/\n/g" | sed "s/\t/\n/g" | sed "s/^ *//g" | tail -n+2 > Ecoli_"$i"_geneflanks_targetlist.txt
+cat Ecoli_geneflanks_allblastn | grep -w -F -f Ecoli_"$i"_geneflanks_targetlist.txt - | grep "$i"_ | sed "s/_up_/\t/g" | sed "s/_down_/\t/g" | cut -f1,3- | awk -F '\t' '{OFS=""}{print $13,"%",$14,"%",$10,"\t",$2}' | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/%plus, /%/g" | sed "s/%minus, /%/g" | sed "s/%plus/\tplus/g" | sed "s/%minus/\tminus/g" | sed "s/%/,/g" | sed "s/\t/,/g" | sed "s/ //g" | awk -F',' '{identifier = $1; values = $2 "," $3 "," $4 "," $5; split(values, array, ","); asort(array); middle1 = array[2]; middle2 = array[3]; difference = middle2 - middle1; if (difference >= 0) { print identifier, middle1, middle2, difference, $6; } else { print identifier, middle2, middle1, -difference, $6; } }' > Ecoli_"$i"_geneflanks_intervalinfo
+done
+#Salmonella
+for i in $(cut -f 1 Salmonella_geneflanks_targets.txt)
+do
+#echo $i | sed "s/$/\t/g" | grep -F -f - Salmonella_geneflanks_targets.txt | sed "s/,/\n/g" | sed "s/\t/\n/g" | sed "s/^ *//g" | tail -n+2 | sort -k1 > Salmonella_"$i"_geneflanks_targetlist.txt
+sort -k2 Salmonella_geneflanks_allblastn | join -1 2 -2 1 - Salmonella_"$i"_geneflanks_targetlist.txt | sed "s/ /\t/g" | awk -F '\t' '{OFS=FS}{print $2,$0}' | cut -f 1,2,4- | grep "$i"_ | sed "s/_up_/\t/g" | sed "s/_down_/\t/g" | cut -f1,3- | awk -F '\t' '{OFS=""}{print $13,"%",$14,"%",$10,"\t",$2}' | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/%plus, /%/g" | sed "s/%minus, /%/g" | sed "s/%plus/\tplus/g" | sed "s/%minus/\tminus/g" | sed "s/%/,/g" | sed "s/\t/,/g" | sed "s/ //g" | awk -F',' '{identifier = $1; values = $2 "," $3 "," $4 "," $5; split(values, array, ","); asort(array); middle1 = array[2]; middle2 = array[3]; difference = middle2 - middle1; if (difference >= 0) { print identifier, middle1, middle2, difference, $6; } else { print identifier, middle2, middle1, -difference, $6; } }' > Salmonella_"$i"_geneflanks_intervalinfo
+done
+#Mycobacterium
+for i in $(cut -f 1 Mycobacterium_geneflanks_targets.txt)
+do
+#echo $i | sed "s/$/\t/g" | grep -F -f - Mycobacterium_geneflanks_targets.txt | sed "s/,/\n/g" | sed "s/\t/\n/g" | sed "s/^ *//g" | tail -n+2 > Mycobacterium_"$i"_geneflanks_targetlist.txt
+cat Mycobacterium_geneflanks_allblastn | grep -w -F -f Mycobacterium_"$i"_geneflanks_targetlist.txt - | grep "$i"_ | sed "s/_up_/\t/g" | sed "s/_down_/\t/g" | cut -f1,3- | awk -F '\t' '{OFS=""}{print $13,"%",$14,"%",$10,"\t",$2}' | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/%plus, /%/g" | sed "s/%minus, /%/g" | sed "s/%plus/\tplus/g" | sed "s/%minus/\tminus/g" | sed "s/%/,/g" | sed "s/\t/,/g" | sed "s/ //g" | awk -F',' '{identifier = $1; values = $2 "," $3 "," $4 "," $5; split(values, array, ","); asort(array); middle1 = array[2]; middle2 = array[3]; difference = middle2 - middle1; if (difference >= 0) { print identifier, middle1, middle2, difference, $6; } else { print identifier, middle2, middle1, -difference, $6; } }' > Mycobacterium_"$i"_geneflanks_intervalinfo
+done
 
 for i in Ecoli Salmonella Mycobacterium
 do
@@ -263,31 +261,124 @@ tail -n+8 Ecoli_"$i"_blastn_mviewed | head -n-3 | sed "1s/^/g /g" | awk '{print 
 fi
 done
 
-#geneflanks:
+#############REGULAR BLASTN################
+
 for i in Ecoli Salmonella Mycobacterium
 do
-cat "$i"_gene*blastn | sort -u > "$i"_geneflanks_allblastn #for later
+mkdir "$i"_speciesspecific_regular
+mkdir "$i"_genusspecific_regular
+cut -f1 -d "(" ../"$i"_step1_speciespecific_ORFan.txt | sed "s/^/"$i"_/g" | sed "s/$/_*intervalinfo "$i"_speciesspecific_flanks/g" | sed "s/^/cp /g" | bash
+grep -v -F -f ../"$i"_step1_speciespecific_ORFan.txt ../"$i"_step1_genusspecific_ORFan.txt | cut -f1 -d "(" | sed "s/^/"$i"_/g" | sed "s/$/_*intervalinfo "$i"_genusspecific_flanks/g" | sed "s/^/cp /g" | bash
 done
 
-#Ecoli
-for i in $(cut -f 1 Ecoli_geneflanks_targets.txt)
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Regular blastn:
+
+blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Escherichia_db/Escherichia_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_extragenus_regular_blastn
+blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Escherichia_db/Ecoli_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_intragenus_regular_blastn
+blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Salmonella_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Salmonella_extragenus_regular_blastn
+blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Enterica_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Salmonella_intragenus_regular_blastn
+blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Mycobacterium_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Mycobacterium_extragenus_regular_blastn
+blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Tuberculosis_excluded.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Mycobacterium_intragenus_regular_blastn
+blastn -query Ecoli_step1_genusspecific_ORFan.CDS.faa -db /stor/work/Ochman/hassan/Ecoli_pangenome/103024_updated_pipeline/backup/all_450_genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_pangenome_regular_blastn
+blastn -query Salmonella_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Salmonella_db/Salmonella_pangenome.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Salmonella_pangenome_regular_blastn
+blastn -query Mycobacterium_step1_genusspecific_ORFan.CDS.faa -db /stor/scratch/Ochman/hassan/100724_Complete_Genomes/Mycobacterium_db/Mycobacterium_pangenome.genomes -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Mycobacterium_pangenome_regular_blastn
+
+mkdir regular_blastn
+cp ../*genus*regular* .
+
+for i in Ecoli Salmonella Mycobacterium
 do
-echo $i | sed "s/$/\t/g" | grep -F -f - Ecoli_geneflanks_targets.txt | sed "s/,/\n/g" | sed "s/\t/\n/g" | sed "s/^ *//g" | tail -n+2 > Ecoli_"$i"_geneflanks_targetlist.txt
-cat Ecoli_geneflanks_allblastn | grep -w -F -f Ecoli_"$i"_geneflanks_targetlist.txt - | grep "$i"_ | sed "s/_up_/\t/g" | sed "s/_down_/\t/g" | cut -f1,3- | awk -F '\t' '{OFS=""}{print $13,"%",$14,"%",$10,"\t",$2}' | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/%plus, /%/g" | sed "s/%minus, /%/g" | sed "s/%plus/\tplus/g" | sed "s/%minus/\tminus/g" | sed "s/%/,/g" | sed "s/\t/,/g" | sed "s/ //g" | awk -F',' '{identifier = $1; values = $2 "," $3 "," $4 "," $5; split(values, array, ","); asort(array); middle1 = array[2]; middle2 = array[3]; difference = middle2 - middle1; if (difference >= 0) { print identifier, middle1, middle2, difference, $6; } else { print identifier, middle2, middle1, -difference, $6; } }' > Ecoli_"$i"_geneflanks_intervalinfo
+for j in intra extra
+do
+awk -v prefix="$i"_"$j"_ '/^Query=/ {close(file); match($0, / (.*)\(/, arr); file = prefix arr[1] "_blastn"} {if (file) print > file}' "$i"_"$j"genus_regular_blastn
 done
-#Salmonella
-for i in $(cut -f 1 Salmonella_geneflanks_targets.txt)
-do
-#echo $i | sed "s/$/\t/g" | grep -F -f - Salmonella_geneflanks_targets.txt | sed "s/,/\n/g" | sed "s/\t/\n/g" | sed "s/^ *//g" | tail -n+2 | sort -k1 > Salmonella_"$i"_geneflanks_targetlist.txt
-sort -k2 Salmonella_geneflanks_allblastn | join -1 2 -2 1 - Salmonella_"$i"_geneflanks_targetlist.txt | sed "s/ /\t/g" | awk -F '\t' '{OFS=FS}{print $2,$0}' | cut -f 1,2,4- | grep "$i"_ | sed "s/_up_/\t/g" | sed "s/_down_/\t/g" | cut -f1,3- | awk -F '\t' '{OFS=""}{print $13,"%",$14,"%",$10,"\t",$2}' | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/%plus, /%/g" | sed "s/%minus, /%/g" | sed "s/%plus/\tplus/g" | sed "s/%minus/\tminus/g" | sed "s/%/,/g" | sed "s/\t/,/g" | sed "s/ //g" | awk -F',' '{identifier = $1; values = $2 "," $3 "," $4 "," $5; split(values, array, ","); asort(array); middle1 = array[2]; middle2 = array[3]; difference = middle2 - middle1; if (difference >= 0) { print identifier, middle1, middle2, difference, $6; } else { print identifier, middle2, middle1, -difference, $6; } }' > Salmonella_"$i"_geneflanks_intervalinfo
 done
 
-#Mycobacterium
-for i in $(cut -f 1 Mycobacterium_geneflanks_targets.txt)
+grep "No hits found" *_blastn | grep -v "regular" | cut -f1 -d ":" | sed "s/^/rm /g" | bash
+
+#Ecoli, extra:
+
+for i in Ecoli Salmonella Mycobacterium
 do
-#echo $i | sed "s/$/\t/g" | grep -F -f - Mycobacterium_geneflanks_targets.txt | sed "s/,/\n/g" | sed "s/\t/\n/g" | sed "s/^ *//g" | tail -n+2 > Mycobacterium_"$i"_geneflanks_targetlist.txt
-cat Mycobacterium_geneflanks_allblastn | grep -w -F -f Mycobacterium_"$i"_geneflanks_targetlist.txt - | grep "$i"_ | sed "s/_up_/\t/g" | sed "s/_down_/\t/g" | cut -f1,3- | awk -F '\t' '{OFS=""}{print $13,"%",$14,"%",$10,"\t",$2}' | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/%plus, /%/g" | sed "s/%minus, /%/g" | sed "s/%plus/\tplus/g" | sed "s/%minus/\tminus/g" | sed "s/%/,/g" | sed "s/\t/,/g" | sed "s/ //g" | awk -F',' '{identifier = $1; values = $2 "," $3 "," $4 "," $5; split(values, array, ","); asort(array); middle1 = array[2]; middle2 = array[3]; difference = middle2 - middle1; if (difference >= 0) { print identifier, middle1, middle2, difference, $6; } else { print identifier, middle2, middle1, -difference, $6; } }' > Mycobacterium_"$i"_geneflanks_intervalinfo
+for j in intra extra
+do
+header=$(head -14 "$i"_"$j"genus_regular_blastn)
+footer=$(tail -11 "$i"_"$j"genus_regular_blastn)
+for file in $(ls "$i"*"$j"_*blastn); do
+    # Prepend the header to the file
+    { echo "$header"; cat "$file"; } > temp_file && mv temp_file "$file"
+    
+    # Append the footer to the file
+    { cat "$file"; echo "$footer"; } > temp_file && mv temp_file "$file"
 done
+done
+done
+
+export PERL5LIB=/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/lib/
+for i in $(ls *_blastn | grep -v "regular" | rev | cut -f2- -d "_" | rev)
+do
+echo "/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/bin/mview -in blast ${i}_blastn > ${i}_blastn_mviewed"
+done > running.sh
+
+cat ../Ecoli_CDS_queryfile.faa ../Salmonella_CDS_queryfile.faa ../Mycobacterium_CDS_queryfile.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" > all_CDS_queryfile.faa
+
+for i in $(ls *mviewed | grep -v "regular" | rev | cut -f3- -d "_" | rev)
+do
+querylength=$(echo $i | cut -f3- -d "_" | sed "s/$/(/g" | grep -F -A1 -f - all_CDS_queryfile.faa | grep -v "^>" | awk '{print length($0)}')
+ratio=$(tail -n+8 "$i"_blastn_mviewed | head -1 | awk '{print $(NF-1)}' | sed "s/:/\t/g" | awk -v var=$querylength -F '\t' '{print ($2-$1+1)/var}')
+if (( $(echo "$ratio > 0.5" | bc -l) ))
+then
+tail -n+9 "$i"_blastn_mviewed | head -n-3 | awk '{print $2,$(NF-4),$NF}' | sed "s/%//g" | awk '($2>50)' | awk '{print $1,$3}' | sed "s/^/>/g" | sed "s/ /\n/g" | linear > "$i"_blastn_seq.faa
+tail -n+8 "$i"_blastn_mviewed | head -n-3 | sed "1s/^/g /g" | awk '{print $2,$NF}' | sed "s/^/>/g" | sed "s/ /\n/g" | linear | head -2 | seqkit fx2tab | cut -f2- -d "@" | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/^/>/g" | sed "s/\t$//g" | sed "s/\t/\n/g" >> "$i"_blastn_seq.faa
+fi
+done
+
+#Filter by genus and species-specific sequences
+
+
+
+egrep -v "Escherichia|@" ../../all_contig_protein_taxonomy* > genus_contig_protein_taxonomy.tsv
+for i in $(ls *_blastn_seq.faa | cut -f1,2 -d "_")
+do
+grep "^>" "$i"_blastn_seq.faa | tr -d ">" | head -n-1 | sort -u | grep -w -F -f - genus_contig_protein_taxonomy.tsv | sort -k1 > interim
+seqkit fx2tab "$i"_blastn_seq.faa | sort -k1 | join -1 1 -2 1 - interim | awk '{print $1,$2":"$3}' | awk '!seen[$2]++' | sed "s/:/ /g" | awk '{print $3":"$1"\t"$2}' | sed "s/^/>/g" | sed "s/\t/\n/g" > "$i"_mafft_input.faa
+tail -2 "$i"_blastn_seq.faa >> "$i"_mafft_input.faa
+grep -A1 "$i" ../../genus_specific_ORFans_largeenoughcontigs.CDS.faa | seqkit fx2tab | sed "s/\t$//g" | cut -f2- -d "@" | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/^/>/g" | sed "s/>/>FULL_/g" | sed "s/\t/\n/g" >> "$i"_mafft_input.faa
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#DENOVO - LATER
 
 #1. Collapse all varieties of prox and gene flanks into one file per gene cluster:
 
@@ -340,45 +431,5 @@ find . -type f -empty -delete
 
 #Genus-specific
 
-awk '/^Query=/ {close(file); match($0, / (.*)\(/, arr); file = arr[1] "_blastn"} {if (file) print > file}' Ecoli_extragenus_regular_blastn
-grep "No hits found" *_blastn | rev | cut -f2- -d "_" | rev | sed "s/^/rm /g" | sed "s/$/\*/g" | bash
 
-header=$(head -14 Ecoli_extragenus_regular_blastn)
-footer=$(tail -11 Ecoli_extragenus_regular_blastn)
-for file in $(ls *_blastn | grep -v "regular"); do
-    # Prepend the header to the file
-    { echo "$header"; cat "$file"; } > temp_file && mv temp_file "$file"
-    
-    # Append the footer to the file
-    { cat "$file"; echo "$footer"; } > temp_file && mv temp_file "$file"
-done
-
-export PERL5LIB=/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/lib/
-
-for i in $(ls *_blastn | grep -v "regular" | rev | cut -f2- -d "_" | rev)
-do
-echo "/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/bin/mview -in blast ${i}_blastn > ${i}_blastn_mviewed"
-done > running.sh
-
-seqkit fx2tab ../Ecoli_CDS_queryfile.faa | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" > Ecoli_CDS_queryfile.faa
-
-for i in $(ls *mviewed | grep -v "regular" | rev | cut -f3- -d "_" | rev)
-do
-querylength=$(echo $i | sed "s/$/(/g" | grep -F -A1 -f - Ecoli_CDS_queryfile.faa | grep -v "^>" | awk '{print length($0)}')
-ratio=$(tail -n+8 "$i"_blastn_mviewed | head -1 | awk '{print $(NF-1)}' | sed "s/:/\t/g" | awk -v var=$querylength -F '\t' '{print ($2-$1+1)/var}')
-if (( $(echo "$ratio > 0.5" | bc -l) ))
-then
-tail -n+9 "$i"_blastn_mviewed | head -n-3 | awk '{print $2,$(NF-4),$NF}' | sed "s/%//g" | awk '($2>50)' | awk '{print $1,$3}' | sed "s/^/>/g" | sed "s/ /\n/g" | linear > "$i"_blastn_seq.faa
-tail -n+8 "$i"_blastn_mviewed | head -n-3 | sed "1s/^/g /g" | awk '{print $2,$NF}' | sed "s/^/>/g" | sed "s/ /\n/g" | linear | head -2 | seqkit fx2tab | cut -f2- -d "@" | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/^/>/g" | sed "s/\t$//g" | sed "s/\t/\n/g" >> "$i"_blastn_seq.faa
-fi
-done
-
-egrep -v "Escherichia|@" ../../all_contig_protein_taxonomy* > genus_contig_protein_taxonomy.tsv
-for i in $(ls *_blastn_seq.faa | cut -f1,2 -d "_")
-do
-grep "^>" "$i"_blastn_seq.faa | tr -d ">" | head -n-1 | sort -u | grep -w -F -f - genus_contig_protein_taxonomy.tsv | sort -k1 > interim
-seqkit fx2tab "$i"_blastn_seq.faa | sort -k1 | join -1 1 -2 1 - interim | awk '{print $1,$2":"$3}' | awk '!seen[$2]++' | sed "s/:/ /g" | awk '{print $3":"$1"\t"$2}' | sed "s/^/>/g" | sed "s/\t/\n/g" > "$i"_mafft_input.faa
-tail -2 "$i"_blastn_seq.faa >> "$i"_mafft_input.faa
-grep -A1 "$i" ../../genus_specific_ORFans_largeenoughcontigs.CDS.faa | seqkit fx2tab | sed "s/\t$//g" | cut -f2- -d "@" | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/^/>/g" | sed "s/>/>FULL_/g" | sed "s/\t/\n/g" >> "$i"_mafft_input.faa
-done
 
