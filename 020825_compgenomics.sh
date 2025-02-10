@@ -197,6 +197,10 @@ do
 cat Mycobacterium_geneflanks_allblastn | grep -w -F -f Mycobacterium_"$i"_geneflanks_targetlist.txt - | grep "$i"_ | sed "s/_up_/\t/g" | sed "s/_down_/\t/g" | cut -f1,3- | awk -F '\t' '{OFS=""}{print $13,"%",$14,"%",$10,"\t",$2}' | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/%plus, /%/g" | sed "s/%minus, /%/g" | sed "s/%plus/\tplus/g" | sed "s/%minus/\tminus/g" | sed "s/%/,/g" | sed "s/\t/,/g" | sed "s/ //g" | awk -F',' '{identifier = $1; values = $2 "," $3 "," $4 "," $5; split(values, array, ","); asort(array); middle1 = array[2]; middle2 = array[3]; difference = middle2 - middle1; if (difference >= 0) { print identifier, middle1, middle2, difference, $6; } else { print identifier, middle2, middle1, -difference, $6; } }' > Mycobacterium_"$i"_geneflanks_intervalinfo
 done
 
+for i in $(cut -f1 -d "(" Ecoli_step1_speciespecific_ORFan.txt)
+do
+
+
 for i in Ecoli Salmonella Mycobacterium
 do
 mkdir "$i"_speciesspecific_flanks
@@ -262,14 +266,6 @@ fi
 done
 
 #############REGULAR BLASTN################
-
-for i in Ecoli Salmonella Mycobacterium
-do
-mkdir "$i"_speciesspecific_regular
-mkdir "$i"_genusspecific_regular
-cut -f1 -d "(" ../"$i"_step1_speciespecific_ORFan.txt | sed "s/^/"$i"_/g" | sed "s/$/_*intervalinfo "$i"_speciesspecific_flanks/g" | sed "s/^/cp /g" | bash
-grep -v -F -f ../"$i"_step1_speciespecific_ORFan.txt ../"$i"_step1_genusspecific_ORFan.txt | cut -f1 -d "(" | sed "s/^/"$i"_/g" | sed "s/$/_*intervalinfo "$i"_genusspecific_flanks/g" | sed "s/^/cp /g" | bash
-done
 
 
 
@@ -348,6 +344,26 @@ done
 
 #Filter by genus and species-specific sequences
 
+#For species specific ones:
+for j in Ecoli Salmonella Mycobacterium
+do
+for i in $(cut -f1 -d "(" ../"$j"_step1_speciespecific_ORFan.txt)
+do
+head -n-2 "$j"_extra_"$i"_blastn_seq.faa | sed "s/>/>regular_/g" > "$j"_"$i"_blastn_seq.regular.compiled.faa
+head -n-2 "$j"_intra_"$i"_blastn_seq.faa | sed "s/>/>regular_/g" >> "$j"_"$i"_blastn_seq.regular.compiled.faa
+tail -2 "$j"_intra_"$i"_blastn_seq.faa >> "$j"_"$i"_blastn_seq.regular.compiled.faa
+done
+done
+
+#For genus specific ones only:
+for j in Ecoli Salmonella Mycobacterium
+do
+for i in $(grep -v -F -f ../"$j"_step1_speciespecific_ORFan.txt ../"$j"_step1_genusspecific_ORFan.txt | cut -f1 -d "(")
+do
+head -n-2 "$j"_extra_"$i"_blastn_seq.faa | sed "s/>/>regular_/g" > "$j"_"$i"_blastn_seq.regular.compiled.faa
+tail -2 "$j"_extra_"$i"_blastn_seq.faa >> "$j"_"$i"_blastn_seq.regular.compiled.faa
+done
+done
 
 
 egrep -v "Escherichia|@" ../../all_contig_protein_taxonomy* > genus_contig_protein_taxonomy.tsv
