@@ -416,7 +416,7 @@ for i in $(cut -f1 -d "(" ../"$j"_step1_speciespecific_ORFan.txt)
 do
 head -n-2 "$j"_extra_"$i"_blastn_seq.faa | sed "s/>/>regular_/g" > "$j"_"$i"_blastn_seq.regular.compiled.faa
 head -n-2 "$j"_intra_"$i"_blastn_seq.faa | sed "s/>/>regular_/g" >> "$j"_"$i"_blastn_seq.regular.compiled.faa
-tail -2 "$j"_intra_"$i"_blastn_seq.faa >> "$j"_"$i"_blastn_seq.regular.compiled.faa
+cat "$j"_intra_"$i"_blastn_seq.faa "$j"_extra_"$i"_blastn_seq.faa | tail -2 >> "$j"_"$i"_blastn_seq.regular.compiled.faa
 done
 done
 
@@ -426,7 +426,7 @@ do
 for i in $(grep -v -F -f ../"$j"_step1_speciespecific_ORFan.txt ../"$j"_step1_genusspecific_ORFan.txt | cut -f1 -d "(")
 do
 head -n-2 "$j"_extra_"$i"_blastn_seq.faa | sed "s/>/>regular_/g" > "$j"_"$i"_blastn_seq.regular.compiled.faa
-tail -2 "$j"_extra_"$i"_blastn_seq.faa >> "$j"_"$i"_blastn_seq.regular.compiled.faa
+cat "$j"_intra_"$i"_blastn_seq.faa "$j"_extra_"$i"_blastn_seq.faa | tail -2 >> "$j"_"$i"_blastn_seq.regular.compiled.faa
 done
 done
 
