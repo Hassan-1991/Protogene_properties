@@ -440,13 +440,22 @@ do
 for i in $(ls "$j"_*noncoding.interim | cut -f2- -d "_" | rev | cut -f2- -d "_" | rev)
 do
 seqkit fx2tab "$j"_"$i"_noncoding.interim | sed "s/(+)//g" | sed "s/(-)//g" | sort -u | tail -n+2 | sed "s/_/\t/" | sed "s/\t$//g" | sed "s/:/\t/" | awk -F'\t' '$0 ~ /^regular/ {$2 = $2 FS "FILLER"} 1' | sed "s/ /\t/g" | sort -k2 | join -1 2 -2 1 - /stor/scratch/Ochman/hassan/100724_Complete_Genomes/"$j"_all_contig_taxonomy.tsv | sed "s/ /\t/g" | awk -F'\t' '!seen[$5,$4]++' | awk -F '\t' '{print $5":"$1":"$3":"$2"\t"$4}' | sed "s/^/>/g" | sed "s/\t/\n/g" > "$j"_"$i"_noncoding.nr
-tail -2 "$j"_"$i"_noncoding.interim >> "$j"_"$i"_noncoding.nr
+#tail -2 "$j"_"$i"_noncoding.interim >> "$j"_"$i"_noncoding.nr
 done
 done
 
+cat ../Ecoli_CDS_queryfile.faa ../Salmonella_CDS_queryfile.faa ../Mycobacterium_CDS_queryfile.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" > all_CDS_queryfile.faa
+
+for i in $(ls *_noncoding.nr | rev | cut -f2- -d "_" | rev | cut -f2- -d "_")
+do
+echo $i | sed "s/$/(/g" | grep -A1 -f - all_CDS_queryfile.faa >> "$i"_noncoding.nr
+done
+
+
+
 for i in $(ls *_noncoding.nr | rev | cut -f2- -d "_" | rev)
 do
-mafft --auto "$i"_noncoding.nr > "$i"_mafft.aln
+echo "mafft --auto ${i}_noncoding.nr > ${i}_mafft.aln"
 done
 
 
