@@ -82,3 +82,18 @@ grep -v "^#" test | sort -k1 | join -1 1 -2 1 - all_qval0.01.lengths.tsv | sed "
 #Parse the above later to find intra-database links
 
 grep "^>" ../Caglar2017_MSvalidated_proteins.cds.faa | cut -f1 -d "(" | tr -d ">" | cat - ../Mori2021 ../ECOR2023_MSvalidated_proteins.txt | sort -u | sed "s/$/(/g" > all_MS_validated_proteins.txt
+
+#Excluding annotated hits:
+cut -f1 -d "(" /stor/scratch/Ochman/hassan/112724_protogene_extension/consolidating_datasets/all_MS_validated_proteins.txt | grep -v -F -f all_protogenes_tobeexcluded.txt -
+
+#Exclude:
+NC_000913.3_101381(-)
+NC_000913.3_116107(-)
+NC_000913.3_4041(+)
+NC_012967.1_102979(-)
+NC_012967.1_124406(-)
+
+cut -f1 -d "(" /stor/scratch/Ochman/hassan/112724_protogene_extension/consolidating_datasets/all_MS_validated_proteins.txt | grep -v -F -f all_protogenes_tobeexcluded.txt - | sed "s/$/(/g" | grep -F -f - ../comparative_genomics/Ecoli_vs_pangenome_annotated.tsv | awk -F '\t' '($16<0.001&&$5>60)' | cut -f1 | sort -u | cut -f1 -d "(" | sed "s/$/(/g" | grep -F -v -f - /stor/scratch/Ochman/hassan/112724_protogene_extension/consolidating_datasets/all_MS_validated_proteins.txt | grep -v -F -f all_protogenes_tobeexcluded.txt - | cut -f1 -d "(" > /stor/scratch/Ochman/hassan/112724_protogene_extension/consolidating_datasets/all_MS_validated_proteins.final.txt
+
+NC_012967.1_107331,KMFSLSNFWR
+
