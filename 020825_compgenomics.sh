@@ -512,19 +512,54 @@ done
 
 find . -type f -empty -delete
 
-#Figure out different routes of analysis for different gene sets
+#Prep Ecoli denovo candidates based on manual alignment work:
+rev /stor/work/Ochman/hassan/protogene_extension/comparative_genomics/all_noncoding_tracing/Ecoli_denovocandidates.txt | cut -f1 -d "/" | cut -f3- -d "_"  | rev | sed "s/$/_/g" > Ecoli_denovocandidates.txt
 
-1. E-coli proto-genes: de novo analysis
+for variable in $(cat Ecoli_denovocandidates.txt | sed "s/_$//g")
+do
+    command="grep \"plus\" ${variable}_compiled_intervalinfo.taxa.final.txt | awk '{OFS=\"\"}{print \"samtools faidx /stor/scratch/Ochman/hassan/100724_Complete_Genomes/individual_genomes/\",\$1,\" \",\$1,\":\",\$3,\"-\",\$4}' | sed \"s/\$/ >> ${variable}_interval.faa/g\" && grep \"minus\" ${variable}_compiled_intervalinfo.taxa.final.txt | awk '{OFS=\"\"}{print \"samtools faidx -i /stor/scratch/Ochman/hassan/100724_Complete_Genomes/individual_genomes/\",\$1,\" \",\$1,\":\",\$3,\"-\",\$4}' | sed \"s/\$/ >> ${variable}_interval.faa/g\""
+    output_file="${variable}_joint_samtools.sh"
+    bash -c "$command" > "$output_file"
+done
 
-2. All other categories: Traceability to outgroups (outside genus for genus-specific, outside species for species-specific)
-  a) Ecoli proto-genes
-  b) Ecoli, Myc, Sal species-specific genes
-  c) Ecoli, Myc, Sal genus-specific genes
+for i in $(ls *_interval.faa | rev | cut -f2- -d "_" | rev)
+do
+makeblastdb -in "$i"_interval.faa -dbtype nucl -out "$i"_interval
+done
 
-#Let's do Ecoli denovo genes first to get one thing out of the way
-#Tag mafft input files with these:
+seqkit fx2tab ../../Ecoli_CDS_queryfile.faa | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" > Ecoli_CDS_queryfile.faa
 
-#Genus-specific
+for i in $(ls *_interval.faa | cut -f2- -d "_" | rev | cut -f2- -d "_" | rev)
+do
+echo $i | sed "s/$/(/g" | grep --no-group-separator -A1 -f - Ecoli_CDS_queryfile.faa |
+blastn -query - -db Ecoli_"$i"_interval -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out Ecoli_"$i"_interval_blastn. -word_size 7
+done
 
+export PERL5LIB=/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/lib/
+for i in $(ls *_interval_blastn | rev | cut -f3- -d "_" | rev)
+do
+echo "/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/bin/mview -in blast ${i}_interval_blastn > ${i}_blastn_mviewed"
+done > running.sh
 
+for i in $(ls *_blastn_mviewed | cut -f2- -d "_" | rev | cut -f3- -d "_" | rev)
+do
+querylength=$(echo $i | sed "s/$/\(/g" | grep -A1 -f - Ecoli_CDS_queryfile.faa | grep -v "^>" | awk '{print length($0)}')
+ratio=$(tail -n+8 Ecoli_"$i"_blastn_mviewed | head -1 | awk '{print $(NF-1)}' | sed "s/:/\t/g" | awk -v var=$querylength -F '\t' '{print ($2-$1+1)/var}')
+if (( $(echo "$ratio > 0.5" | bc -l) ))
+then
+tail -n+9 Ecoli_"$i"_blastn_mviewed | head -n-3 | awk '{print $2,$(NF-4),$NF}' | sed "s/%//g" | awk '($2>50)' | awk '{print $1,$3}' | sed "s/^/>/g" | sed "s/ /\n/g" | linear | sed "s/>/>flank_/g" > Ecoli_"$i"_blastn_seq.faa
+echo $i | sed "s/$/(/g" | grep --no-group-separator -A1 -f - Ecoli_CDS_queryfile.faa >> Ecoli_"$i"_blastn_seq.faa
+fi
+done
+
+for i in $(ls *_blastn_mviewed | cut -f2- -d "_" | rev | cut -f3- -d "_" | rev)
+do
+seqkit fx2tab Ecoli_"$i"_blastn_seq.faa | sed "s/flank_//g" | head -n-2 | sed "s/\t$//g" | sed "s/:/\t/" | sed "s/ /\t/g" | sort -k1 | join -1 1 -2 1 - ../Ecoli_intervalinfo_taxonomy.tsv | sed "s/ /\t/g" | awk -F'\t' '!seen[$3,$4]++' | awk '{print ">"$NF":"$1":"$2"\t"$3}' | sed "s/\t/\n/g" > Ecoli_"$i"_mafft_input.faa
+echo $i | sed "s/$/(/g" | grep --no-group-separator -A1 -f - Ecoli_CDS_queryfile.faa >> Ecoli_"$i"_mafft_input.faa
+done
+
+for i in $(ls *_mafft_input.faa | rev | cut -f3- -d "_" | rev)
+do
+echo "mafft --auto ${i}_mafft_input.faa > ${i}_mafft.aln"
+done
 
