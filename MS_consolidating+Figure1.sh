@@ -95,5 +95,99 @@ NC_012967.1_124406(-)
 
 cut -f1 -d "(" /stor/scratch/Ochman/hassan/112724_protogene_extension/consolidating_datasets/all_MS_validated_proteins.txt | grep -v -F -f all_protogenes_tobeexcluded.txt - | sed "s/$/(/g" | grep -F -f - ../comparative_genomics/Ecoli_vs_pangenome_annotated.tsv | awk -F '\t' '($16<0.001&&$5>60)' | cut -f1 | sort -u | cut -f1 -d "(" | sed "s/$/(/g" | grep -F -v -f - /stor/scratch/Ochman/hassan/112724_protogene_extension/consolidating_datasets/all_MS_validated_proteins.txt | grep -v -F -f all_protogenes_tobeexcluded.txt - | cut -f1 -d "(" > /stor/scratch/Ochman/hassan/112724_protogene_extension/consolidating_datasets/all_MS_validated_proteins.final.txt
 
-NC_012967.1_107331,KMFSLSNFWR
+#List all peptides
+grep --no-group-separator -A1 "SEQ=" ../promising_spectra/*tsv | rev | cut -f1 -d "/" | rev | awk 'NR%2{printf "%s ", $0; next}1' | sed "s/SEQ=/:/g" | sed "s/USER03=/:/g" | sed "s/ /:/g" | cut -f1,3,5 -d ":" | sed "s/:/\t/g" > all_promising_peptides.tsv
+grep --no-group-separator -A1 "SEQ=" ../RNAseq_diversion/Caglar2017_RNAseq_promising_spectra/*tsv | rev | cut -f1 -d "/" | rev | awk 'NR%2{printf "%s ", $0; next}1' | sed "s/SEQ=/:/g" | sed "s/USER03=/:/g" | sed "s/ /:/g" | cut -f1,3,5 -d ":" | sed "s/:/\t/g" >> all_promising_peptides.tsv
+grep --no-group-separator -A1 "SEQ=" ../data/Mori2021/MS/mgf/real_mgf/promising_spectra/*tsv | rev | cut -f1 -d "/" | rev | awk 'NR%2{printf "%s ", $0; next}1' | sed "s/SEQ=/:/g" | sed "s/USER03=/:/g" | sed "s/ /:/g" | cut -f1,3,5 -d ":" | sed "s/:/\t/g" >> all_promising_peptides.tsv
+grep --no-group-separator -A1 "SEQ=" ../data/ECOR_2023/ECOR2023_promising_spectra/*tsv | rev | cut -f1 -d "/" | rev | awk 'NR%2{printf "%s ", $0; next}1' | sed "s/SEQ=/:/g" | sed "s/USER03=/:/g" | sed "s/ /:/g" | cut -f1,3,5 -d ":" | sed "s/:/\t/g" >> all_promising_peptides.tsv
 
+sed "s/$/_/g" all_MS_validated_proteins.final.txt | grep -F -f - all_promising_peptides.tsv | rev | cut -f1 -d "=" | rev | sort -u | grep -v "Oxidation" | cut -f2 | sed "s/C/C+57.021/g" | sort -u > 40_peptides.txt
+sed "s/$/_/g" all_MS_validated_proteins.final.txt | grep -F -f - all_promising_peptides.tsv | rev | cut -f1 -d "=" | rev | sort -u | grep "Oxidation" | cut -f2- | sed "s/C/C+57.021/g" | sort -u > interim
+#manually edit the interim file
+cut -f1 interim | sort -u >> 40_peptides.txt
+
+#tsv searches:
+grep -F -f 40_peptides.txt /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Caglar2017/MS_spectra_searches/MURI*tsv | awk -F '\t' '($16<0.01)' > all_40peptide_results.tsv
+grep -F -f 40_peptides.txt /stor/scratch/Ochman/hassan/112724_protogene_extension/RNAseq_diversion/MURI*tsv | awk -F '\t' '($16<0.01)' >> all_40peptide_results.tsv
+grep -F -f 40_peptides.txt /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/MS/mgf/real_mgf/chludwig*tsv | awk -F '\t' '($16<0.01)' >> all_40peptide_results.tsv
+grep -F -f 40_peptides.txt /stor/scratch/Ochman/hassan/112724_protogene_extension/data/ECOR_2023/8925*tsv | awk -F '\t' '($16<0.01)' >> all_40peptide_results.tsv
+
+for i in $(cat 40_peptides.txt); do echo -n $i " "; grep -F $i all_40peptide_results.tsv | cut -f10 | sort -u; done | sort -k2 > peptide_replacements.tsv
+#manually fix
+sed "s/  /\t/g" peptide_replacements.tsv | sort -k2 > test && mv test peptide_replacements.tsv
+
+sed "s/ /_/g" all_40peptide_results.tsv | sort -k10 | join -1 10 -2 2 - peptide_replacements.tsv | sed "s/ /\t/g" | cut -f2- > all_40peptide_results.fixed.tsv
+cut -f10,17 all_40peptide_results.fixed.tsv | sort -u | awk -F'\t' '{ values[$2] = (values[$2] == "" ? $1 : values[$2] ", " $1) } END { for (value in values) { print value "\t" values[value] } }' | sed "s/ //g" > peptide_protein.matches.tsv
+
+cat all_40peptide_results.fixed.tsv | awk -F '\t' '($15<0.01)' | cut -f1,17 | rev | cut -f1 -d ":" | rev | cut -f2 | sort | uniq -c | awk '{print $2","$1",0.01"}' > protein_distribution.csv
+cat all_40peptide_results.fixed.tsv | awk -F '\t' '($15<0.001)' | cut -f1,17 | rev | cut -f1 -d ":" | rev | cut -f2 | sort | uniq -c | awk '{print $2","$1",0.001"}' >> protein_distribution.csv
+cat all_40peptide_results.fixed.tsv | awk -F '\t' '($15<0.0001)' | cut -f1,17 | rev | cut -f1 -d ":" | rev | cut -f2 | sort | uniq -c | awk '{print $2","$1",0.0001"}' >> protein_distribution.csv
+sort -t ',' -k1 protein_distribution.csv -o protein_distribution.csv
+
+sed "s/,/@/g" peptide_protein.matches.tsv | sed "s/\t/,/g" | sort -k1 -t ',' | join -t ',' -1 1 -2 1 - protein_distribution.csv | sed "1s/^/peptide,protein,conditions,criteria\n/g" | head > protein_PSM_distribution.csv
+
+#R code:
+
+setwd("/stor/scratch/Ochman/hassan/112724_protogene_extension/consolidating_datasets")
+
+library(ggplot2)
+library(dplyr)
+
+# Read the data
+p1 <- read.csv("protein_PSM_distribution.csv")
+
+# Convert 'criteria' to factor for ordered layering
+p1$criteria <- factor(p1$criteria, levels = c("0.0001q", "0.001q", "0.01q"))
+
+# Split data for each criteria
+p1_01 <- p1 %>% filter(criteria == "0.01q")
+p1_001 <- p1 %>% filter(criteria == "0.001q")
+p1_0001 <- p1 %>% filter(criteria == "0.0001q")
+
+# Extract protein order from p1_01 based on decreasing "conditions" values
+protein_order <- p1_01 %>% arrange(desc(conditions)) %>% pull(protein)
+
+# Re-factor proteins in all datasets based on the extracted order
+p1_01$protein <- factor(p1_01$protein, levels = protein_order)
+p1_001$protein <- factor(p1_001$protein, levels = protein_order)
+p1_0001$protein <- factor(p1_0001$protein, levels = protein_order)
+
+# Create the overlaid bar plot
+ggplot() +
+  # Base layer: Criteria 0.01 (full bar height, lightest blue)
+  geom_col(data = p1_01, aes(x = protein, y = conditions, fill = "0.01q"), width = 0.8) +
+  # Middle layer: Criteria 0.001 (medium blue)
+  geom_col(data = p1_001, aes(x = protein, y = conditions, fill = "0.001q"), width = 0.8) +
+  # Top layer: Criteria 0.0001 (darkest blue)
+  geom_col(data = p1_0001, aes(x = protein, y = conditions, fill = "0.0001q"), width = 0.8) +
+  # Custom color scale
+  scale_fill_manual(values = c("0.01q" = "#B3CDE3",  # Lightest blue
+                               "0.001q" = "#6497B1", # Medium blue
+                               "0.0001q" = "#005B96")) + # Darkest blue
+  labs(x = "Protein", y = "Conditions", fill = "Criteria") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),  # Remove x-axis labels
+        axis.ticks.x = element_line(color = "black"),
+        axis.ticks.y = element_line(color = "black"),
+        panel.border = element_rect(color = "black", fill = NA, size = 1),
+        panel.grid.major.x = element_blank(),  # Remove major vertical gridlines
+        panel.grid.minor.x = element_blank(),
+        legend.position = "none") +  # Remove legend
+  scale_y_continuous(breaks = seq(0, 65, 5), limits = c(0, 65)) +  # Set y-axis intervals
+  labs(x = "Proteins", y = "Number of conditions in which peptide is detected")  # Set axis labels
+
+#manually fixed the case where one protein is supported by two distinct peptides
+
+################
+
+#Protein-peptide stuff
+
+for i in $(grep -v "NZ_QOWW01000007.1_4686" peptide_protein.matches.tsv | cut -f2 | cut -f1 -d "," | sort -u)
+do
+grep -A1 "$i" all_qval0.01.prot.faa | seqkit fx2tab > temp
+pept=$(grep "$i" peptide_protein.matches.tsv | cut -f1 | sed "s/+15.995//g" | sed "s/+57.021//g" | grep -o -F -f - temp)
+echo "$i" > temp2
+awk '{print length($2)}' temp >> temp2
+grep "$i" peptide_protein.matches.tsv | cut -f1 | sed "s/+15.995//g" | sed "s/+57.021//g" | grep -F -f - temp | sed "s/$pept/@/g" | cut -f2 | sed "s/@/\t/g" | awk -F '\t' '{print length($1),length($2)}' >> temp2
+sed "s/ /\n/g" temp2 | sed -z "s/\n/\t/g" | awk '{print $1"\t"1"\t"$3+1"\t"($2-$4)"\t"$2}' >> all_peptide_mapping.tsv
+done
