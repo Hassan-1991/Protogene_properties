@@ -563,3 +563,95 @@ do
 echo "mafft --auto ${i}_mafft_input.faa > ${i}_mafft.aln"
 done
 
+#pangenome distribution for species-specific ORFans
+
+mkdir flanks/Ecoli_species_specific
+cd flanks/Ecoli_species_specific
+cut -f1 -d "(" ../../all_noncoding_tracing/Ecoli_species_specific_ORFans.txt | sed "s/$/_/g" > Ecoli_species_specific_ORFans.txt
+ls ../*_compiled_intervalinfo.txt | grep -F -f Ecoli_species_specific_ORFans.txt - | sed "s/^/cp /g" | sed "s/$/ ./g" | bash
+
+for i in $(ls *_compiled_intervalinfo.taxa.txt | rev | cut -f3- -d "_" | rev | sort -u)
+do
+value=$(echo $i | sed "s/Ecoli_//g" | sed "s/.*/\"&\"/g" | grep -F -f - ../../Ecoli_queryfile.gtf | awk -F '\t' '{print $5-$4+1}')
+sed -i "s/$/ $value/" "$i"_compiled_intervalinfo.taxa.txt
+echo $i | sed "s/Ecoli_//g" | sed "s/$/\(/g" | grep -f - ../../Ecoli_intragenus_pangenone_presence_absence.tsv | cut -f3 | grep -v -w -F -f - "$i"_compiled_intervalinfo.taxa.txt | awk '(($5>($7*0.5))&&($5<10000))' > "$i"_compiled_intervalinfo.taxa.final.txt
+done
+
+find . -type f -empty -delete
+
+seqkit fx2tab /stor/work/Ochman/hassan/Ecoli_pangenome/500_gffs/all_500_genomes.fasta | sed "s/\t$//g" | grep -w -F -f pangenome_target_genomes.txt - | sed "s/^/>/g" | sed "s/\t/\n/g" | split -l2
+mkdir interim
+mv x* interim
+cd interim
+for i in x* #renaming by the name of contig
+do
+echo "mv ${i} \"\$(grep \"^>\" ${i} | cut -f1 -d \" \" | tr -d \">\")\""
+done > running.sh
+ls -a | tail -n+3 | sed "s/^/mv /g" | awk '{print $0,"/stor/scratch/Ochman/hassan/100724_Complete_Genomes/individual_genomes/"}' | bash
+
+for variable in $(cat Ecoli_species_specific_ORFans.txt | sed "s/_$//g")
+do
+    command="grep \"plus\" Ecoli_${variable}_compiled_intervalinfo.taxa.final.txt | awk '{OFS=\"\"}{print \"samtools faidx /stor/scratch/Ochman/hassan/100724_Complete_Genomes/individual_genomes/\",\$1,\" \",\$1,\":\",\$3,\"-\",\$4}' | sed \"s/\$/ >> ${variable}_interval.faa/g\" && grep \"minus\" Ecoli_${variable}_compiled_intervalinfo.taxa.final.txt | awk '{OFS=\"\"}{print \"samtools faidx -i /stor/scratch/Ochman/hassan/100724_Complete_Genomes/individual_genomes/\",\$1,\" \",\$1,\":\",\$3,\"-\",\$4}' | sed \"s/\$/ >> ${variable}_interval.faa/g\""
+    output_file="${variable}_joint_samtools.sh"
+    bash -c "$command" > "$output_file"
+done
+
+for i in $(ls *_interval.faa | rev | cut -f2- -d "_" | rev)
+do
+makeblastdb -in "$i"_interval.faa -dbtype nucl -out "$i"_interval
+done
+
+seqkit fx2tab ../../Ecoli_CDS_queryfile.faa | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" > Ecoli_CDS_queryfile.faa
+
+for i in $(ls *_interval.faa | rev | cut -f2- -d "_" | rev)
+do
+echo $i | sed "s/$/(/g" | grep --no-group-separator -A1 -f - Ecoli_CDS_queryfile.faa |
+blastn -query - -db "$i"_interval -outfmt 0 -num_threads 72 -num_descriptions 1000000 -num_alignments 1000000 -evalue 200000 -out "$i"_interval_blastn -word_size 7
+done
+
+export PERL5LIB=/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/lib/
+for i in $(ls *_interval_blastn | rev | cut -f3- -d "_" | rev)
+do
+echo "/stor/scratch/Ochman/hassan/genomics_toolbox/mview-1.67/bin/mview -in blast ${i}_interval_blastn > ${i}_blastn_mviewed"
+done > running.sh
+
+for i in $(ls *_blastn_mviewed | rev | cut -f3- -d "_" | rev)
+do
+querylength=$(echo $i | sed "s/$/\(/g" | grep -A1 -f - Ecoli_CDS_queryfile.faa | grep -v "^>" | awk '{print length($0)}')
+ratio=$(tail -n+8 "$i"_blastn_mviewed | head -1 | awk '{print $(NF-1)}' | sed "s/:/\t/g" | awk -v var=$querylength -F '\t' '{print ($2-$1+1)/var}')
+if (( $(echo "$ratio > 0.5" | bc -l) ))
+then
+tail -n+9 "$i"_blastn_mviewed | head -n-3 | awk '{print $2,$(NF-4),$NF}' | sed "s/%//g" | awk '($2>50)' | awk '{print $1,$3}' | sed "s/^/>/g" | sed "s/ /\n/g" | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" | sed "s/>/>flank_/g" > "$i"_blastn_seq.faa
+echo $i | sed "s/$/(/g" | grep --no-group-separator -A1 -f - Ecoli_CDS_queryfile.faa >> "$i"_blastn_seq.faa
+fi
+done
+
+for i in $(ls *_blastn_mviewed | rev | cut -f3- -d "_" | rev)
+do
+seqkit fx2tab "$i"_blastn_seq.faa | sed "s/flank_//g" | head -n-2 | sed "s/\t$//g" | sed "s/:/\t/" | sed "s/ /\t/g" | sort -k1 | join -1 1 -2 1 - ../Ecoli_intervalinfo_taxonomy.tsv  | sed "s/ /\t/g" | awk '{print $NF,$3,$1,$2}' | sed 's/^[^ ]*@/Ecoli@/' | sed "s/ /\t/g" | awk -F'\t' '!seen[$1,$2]++' | awk '{print ">"$1":"$3":"$4"\t"$2}' | sed "s/\t/\n/g" > "$i"_mafft_input.faa
+echo $i | sed "s/$/(/g" | grep --no-group-separator -A1 -f - Ecoli_CDS_queryfile.faa >> "$i"_mafft_input.faa
+done
+
+wc -l *_mafft_input.faa | grep " 2 " | rev | cut -f1 -d " " | rev | sed "s/^/rm /g" | bash
+
+for i in $(ls *_mafft_input.faa | rev | cut -f3- -d "_" | rev)
+do
+echo "mafft --auto ${i}_mafft_input.faa > ${i}_mafft.aln"
+done
+
+
+grep -F -f all_noncoding_tracing/Ecoli_species_specific_ORFans.txt Ecoli_pangenome_proteins_ORF_presence_absence.taxa.tsv | cut -f2- -d " " | sort -u > Ecoli_species_specific_ORFans.pangenome.presenceabsence.tsv
+for i in $(ls *_mafft.aln | rev | cut -f2- -d "_" | rev); do grep "^>" "$i"_mafft.aln | cut -f1 -d ":" | tr -d ">"  | sort -u | head -n-1 | sed "s/$/\t"$i"/g"; done | egrep "Escherichia|@" >> Ecoli_species_specific_ORFans.pangenome.tentativenoncoding.tsv
+
+awk -F '\t' '{print $2"\t"$1"\tcandidate"}' Ecoli_species_specific_ORFans.pangenome.tentativenoncoding.tsv > Ecoli_species_specific.pangenome.presenceabsence.tsv
+sed "s/(+)//g" Ecoli_species_specific_ORFans.pangenome.presenceabsence.tsv | sed "s/(-)//g" | awk '{print $2"\t"$1"\tpresent"}' >> Ecoli_species_specific.pangenome.presenceabsence.tsv
+
+for i in $(cut -f1 Ecoli_species_specific.pangenome.presenceabsence.tsv | sort -u)
+do
+grep "$i" Ecoli_species_specific.pangenome.presenceabsence.tsv >> Ecoli_species_specific.pangenome.presenceabsence.long.tsv
+grep "$i" Ecoli_species_specific.pangenome.presenceabsence.tsv | cut -f2 | grep -w -v -F -f - all_intragenus_pangenome_taxa.txt | sed "s/^/"$i"\t/g" | sed "s/$/\tabsent/g" >> Ecoli_species_specific.pangenome.presenceabsence.long.tsv
+done
+
+sort -u Ecoli_species_specific.pangenome.presenceabsence.long.tsv -o Ecoli_species_specific.pangenome.presenceabsence.long.tsv
+sort -k2 Ecoli_species_specific.pangenome.presenceabsence.long.tsv | join -1 2 -2 1 - ../../Ecoli_pangenome/103024_updated_pipeline/backup/backup_2/taxa_order_index.txt | sort -k2,2 -k4,4n | awk '{print $2,$1,$3}' | sed "s/ /\t/g" | cut -f1 | sort | uniq -c > Ecoli_species_specific.pangenome.presenceabsence.long.ordered.tsv
+
