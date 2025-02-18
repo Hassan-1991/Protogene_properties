@@ -77,11 +77,11 @@ cat "$i"_CDS.final.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s
 #GC_3rd
 cat "$i"_CDS.final.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" | awk '$0 ~ ">" { if (NR > 1) { print name, third_gc_count / (total_length / 3) * 100 "%"; } name = substr($0, 2); total_length = 0; third_gc_count = 0; next; } { total_length += length($0); for (i = 3; i <= length($0); i += 3) { if (substr($0, i, 1) ~ /[GCgc]/) { third_gc_count++; } } } END { print name, third_gc_count / (total_length / 3) * 100 "%"; }' | sed "s/%//g" | sed "s/ /,/g" | sed "s/,,/,/g" | sed "s/$/,GC_3rd/g" >> "$i"_sequenceproperties.csv
 #Polar AA content
-cat "$i"_CDS.final.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" | awk '$0 ~ ">" { if (NR > 1) { print name, polar_count / total_length * 100 "%"; } name = substr($0, 2); total_length = 0; polar_count = 0; next; } { total_length += length($0); polar_count += gsub(/[STYECQNHKR]/, "", $0); } END { print name, polar_count / total_length * 100 "%"; }' | sed "s/%//g" | sed "s/ /,/g" | sed "s/,,/,/g" | sed "s/$/,polarAA/g" >> "$i"_sequenceproperties.csv
+cat "$i"_prot.final.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" | awk '$0 ~ ">" { if (NR > 1) { print name, polar_count / total_length * 100 "%"; } name = substr($0, 2); total_length = 0; polar_count = 0; next; } { total_length += length($0); polar_count += gsub(/[STYECQNHKR]/, "", $0); } END { print name, polar_count / total_length * 100 "%"; }' | sed "s/%//g" | sed "s/ /,/g" | sed "s/,,/,/g" | sed "s/$/,polarAA/g" >> "$i"_sequenceproperties.csv
 #Hydrophobic AA content
-cat "$i"_CDS.final.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" | awk '$0 ~ ">" { if (NR > 1) { print name, polar_count / total_length * 100 "%"; } name = substr($0, 2); total_length = 0; polar_count = 0; next; } { total_length += length($0); polar_count += gsub(/[ACFGILMPVWY]/, "", $0); } END { print name, polar_count / total_length * 100 "%"; }' | sed "s/%//g" | sed "s/ /,/g" | sed "s/,,/,/g" | sed "s/$/,hydrophobicAA/g" >> "$i"_sequenceproperties.csv
+cat "$i"_prot.final.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" | awk '$0 ~ ">" { if (NR > 1) { print name, polar_count / total_length * 100 "%"; } name = substr($0, 2); total_length = 0; polar_count = 0; next; } { total_length += length($0); polar_count += gsub(/[ACFGILMPVWY]/, "", $0); } END { print name, polar_count / total_length * 100 "%"; }' | sed "s/%//g" | sed "s/ /,/g" | sed "s/,,/,/g" | sed "s/$/,hydrophobicAA/g" >> "$i"_sequenceproperties.csv
 #Biosynthetic cost - Akashi and Gojobari lists
-cat "$i"_CDS.final.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" | awk 'NR==FNR{costs[$1]=$2; next} $0 ~ ">" { if (NR > 1 && total_length > 0) { print name, total_cost / total_length; } name = substr($0, 2); total_length = 0; total_cost = 0; next; } { for (i = 1; i <= length($0); i++) { if (substr($0, i, 1) in costs) { total_cost += costs[substr($0, i, 1)]; } } total_length += length($0); } END { if (total_length > 0) { print name, total_cost / total_length; } }' /stor/work/Ochman/hassan/tools/AA_metabolic_costs.txt - | sed "s/%//g" | sed "s/ /,/g" | sed "s/,,/,/g" | sed "s/$/,metabol/g" >> "$i"_sequenceproperties.csv
+cat "$i"_prot.final.faa | seqkit fx2tab | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" | awk 'NR==FNR{costs[$1]=$2; next} $0 ~ ">" { if (NR > 1 && total_length > 0) { print name, total_cost / total_length; } name = substr($0, 2); total_length = 0; total_cost = 0; next; } { for (i = 1; i <= length($0); i++) { if (substr($0, i, 1) in costs) { total_cost += costs[substr($0, i, 1)]; } } total_length += length($0); } END { if (total_length > 0) { print name, total_cost / total_length; } }' /stor/work/Ochman/hassan/tools/AA_metabolic_costs.txt - | sed "s/%//g" | sed "s/ /,/g" | sed "s/,,/,/g" | sed "s/$/,metabol/g" >> "$i"_sequenceproperties.csv
 done
 #cai
 /stor/work/Ochman/hassan/tools/EMBOSS-6.6.0/emboss/cai -seqall Ecoli_CDS.final.faa -cfile /stor/work/Ochman/hassan/tools/EMBOSS-6.6.0/emboss/data/CODONS/Eecoli.cut -outfile Ecoli.cai
@@ -115,6 +115,11 @@ egrep -iv "balrog|smorf|prodigal|gms2" Mycobacterium_sequenceproperties.csv | gr
 egrep -iv "balrog|smorf|prodigal|gms2" Mycobacterium_sequenceproperties.csv | grep -i "leaderless" | sed "s/$/,novel,Leaderless/g" >> Mycobacterium_sequenceproperties.marked.csv
 egrep -iv "balrog|smorf|prodigal|gms2" Mycobacterium_sequenceproperties.csv | grep "control" | sed "s/$/,control,control/g" >> Mycobacterium_sequenceproperties.marked.csv
 
+cat Ecoli_sequenceproperties.marked.csv | sed "s/$/,Ecoli/g" > sequenceproperties.marked.csv
+cat Salmonella_sequenceproperties.marked.csv | sed "s/$/,Salmonella/g" >> sequenceproperties.marked.csv
+cat Mycobacterium_sequenceproperties.marked.csv | sed "s/$/,Mycobacterium/g" >> sequenceproperties.marked.csv
+
+sed -i "1s/^/gene,value,feature,annot_status,dataset,species\n/g" sequenceproperties.marked.csv
 
 #Now categorize
 #Get the ORFans first
@@ -149,7 +154,9 @@ sed -i "s/^/\t/g" odd_taxonomic_names.txt
 
 awk '{sub(/_.*/, "", $2)}1' Ecoli_extragenus_hits.tsv | sort -k2 | join -1 2 -2 1 - /stor/scratch/Ochman/hassan/100724_Complete_Genomes/GBRS_ids_taxa.tsv > Ecoli_extragenus_hits.taxa.tsv
 ###
-awk '{sub(/_.*/, "", $2)}1' Ecoli_extragenus_hits.tsv > Ecoli_interim
+#awk '{sub(/_.*/, "", $2)}1' Ecoli_extragenus_hits.tsv > Ecoli_interim
+sort -k2 Ecoli_interim -o Ecoli_interim
+awk '{print $1,$NF}' Ecoli_interim2 | sort -u | awk '{print $1}' | sort | uniq -c  > Ecoli_extragenus_hits.genusnumber
 ###
 sort -k2 Salmonella_extragenus_hits.tsv | join -1 2 -2 1 - /stor/scratch/Ochman/hassan/100724_Complete_Genomes/GBRS_ids_taxa.tsv > Salmonella_extragenus_hits.taxa.tsv
 sort -k2 Mycobacterium_extragenus_hits.tsv | join -1 2 -2 1 - /stor/scratch/Ochman/hassan/100724_Complete_Genomes/GBRS_ids_taxa.tsv > Mycobacterium_extragenus_hits.taxa.tsv
@@ -166,5 +173,15 @@ egrep "balrog|prodigal|smorfer|gms2" "$i"_extragenus_hits.genusnumber | awk -v v
 egrep -iv "balrog|prodigal|smorfer|gms2" "$i"_extragenus_hits.genusnumber | awk -v var=$novel_median '($1>var)' | rev | cut -f1 -d " " | rev | sort -u > "$i"_novel_conserved
 done
 
+#Mark sequenceproperties file with conservation levels:
+
+for i in Ecoli Salmonella Mycobacterium
+do
+grep -F -f "$i"_*specific_ORFans.final.txt sequenceproperties.marked.csv | sed "s/$/,ORFan/g" >> sequenceproperties.marked.conservation.csv
+grep -F -f "$i"_annot_conserved sequenceproperties.marked.csv | sed "s/$/,conserved/g" >> sequenceproperties.marked.conservation.csv
+grep -F -f "$i"_novel_conserved sequenceproperties.marked.csv | sed "s/$/,conserved/g" >> sequenceproperties.marked.conservation.csv
+cat "$i"_*specific_ORFans.final.txt "$i"_annot_conserved "$i"_novel_conserved | grep -v -F -f - "$i"_sequenceproperties.marked.csv | grep -v "control" | sed "s/$/,"$i",others/g" >> sequenceproperties.marked.conservation.csv
+grep "control" sequenceproperties.marked.csv | grep "$i" | sed "s/$/,control/g" >> sequenceproperties.marked.conservation.csv
+done
 
 
