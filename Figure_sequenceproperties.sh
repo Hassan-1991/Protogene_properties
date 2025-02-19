@@ -91,6 +91,12 @@ for i in Ecoli Salmonella Mycobacterium
 do
 cut -f2,4 -d " " "$i".cai | sed "s/ /,/g" | sed "s/$/,cai/g" >> "$i"_sequenceproperties.csv
 done
+#compbias
+#Calculate with R code
+for i in Ecoli Salmonella Mycobacterium
+do
+tail -n+2 "$i"_AAcomp_temp.csv | tr -d "\"" | sed "s/$/,AAcomp/g" >> "$i"_sequenceproperties.csv
+done
 
 #Assign datasets
 
@@ -184,4 +190,6 @@ cat "$i"_*specific_ORFans.final.txt "$i"_annot_conserved "$i"_novel_conserved | 
 grep "control" sequenceproperties.marked.csv | grep "$i" | sed "s/$/,control/g" >> sequenceproperties.marked.conservation.csv
 done
 
-
+cat sequenceproperties.marked.conservation.csv > sequenceproperties.marked.conservation.final.csv
+egrep -iv "gms2|prodigal|balrog|smorf|control" sequenceproperties.marked.conservation.csv | rev | cut -f2- -d "," | rev | sed "s/$/,total/g" >> sequenceproperties.marked.conservation.final.csv
+sed -i "1s/^/gene,value,feature,annot_status,dataset,species,conservation\n/g" sequenceproperties.marked.conservation.final.csv
