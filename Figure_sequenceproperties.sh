@@ -183,9 +183,9 @@ done
 
 for i in Ecoli Salmonella Mycobacterium
 do
-grep -F -f "$i"_*specific_ORFans.final.txt sequenceproperties.marked.csv | sed "s/$/,ORFan/g" >> sequenceproperties.marked.conservation.csv
-grep -F -f "$i"_annot_conserved sequenceproperties.marked.csv | sed "s/$/,conserved/g" >> sequenceproperties.marked.conservation.csv
-grep -F -f "$i"_novel_conserved sequenceproperties.marked.csv | sed "s/$/,conserved/g" >> sequenceproperties.marked.conservation.csv
+grep -i -w -F -f "$i"_*specific_ORFans.final.txt sequenceproperties.marked.csv | sed "s/$/,ORFan/g" >> sequenceproperties.marked.conservation.csv
+grep -i -w -F -f "$i"_annot_conserved sequenceproperties.marked.csv | sed "s/$/,conserved/g" >> sequenceproperties.marked.conservation.csv
+grep -i -w -F -f "$i"_novel_conserved sequenceproperties.marked.csv | sed "s/$/,conserved/g" >> sequenceproperties.marked.conservation.csv
 cat "$i"_*specific_ORFans.final.txt "$i"_annot_conserved "$i"_novel_conserved | grep -v -F -f - "$i"_sequenceproperties.marked.csv | grep -v "control" | sed "s/$/,"$i",others/g" >> sequenceproperties.marked.conservation.csv
 grep "control" sequenceproperties.marked.csv | grep "$i" | sed "s/$/,control/g" >> sequenceproperties.marked.conservation.csv
 done
@@ -193,3 +193,25 @@ done
 cat sequenceproperties.marked.conservation.csv > sequenceproperties.marked.conservation.final.csv
 egrep -iv "gms2|prodigal|balrog|smorf|control" sequenceproperties.marked.conservation.csv | rev | cut -f2- -d "," | rev | sed "s/$/,total/g" >> sequenceproperties.marked.conservation.final.csv
 sed -i "1s/^/gene,value,feature,annot_status,dataset,species,conservation\n/g" sequenceproperties.marked.conservation.final.csv
+
+awk -F ',' '{OFS=FS}{print $1,$2,$3,$4"_"$7,$6}' sequenceproperties.marked.conservation.final.csv > sequenceproperties.marked.conservation.final.plotting.csv
+
+#######Joining expression w conservation#######
+
+
+cat sequence_properties/Ecoli_genusspecific_ORFans.final.txt | egrep -vi "prodigal|smorf|balrog|gms2" | grep -w -F -f - Ecoli.REL606.tpm | sed "s/$/_ORFan/g" | awk -F '\t' '{OFS=FS}{print $2,$3,$(NF-1),$NF}' > Ecoli.REL606.tpm.conservation.tsv
+cat sequence_properties/Ecoli_genusspecific_ORFans.final.txt | egrep -i "prodigal|smorf|balrog|gms2" | grep -w -F -f - Ecoli.REL606.tpm | sed "s/$/_ORFan/g" | awk -F '\t' '{OFS=FS}{print $2,$3,$(NF-1),$NF}' >> Ecoli.REL606.tpm.conservation.tsv
+cat sequence_properties/Ecoli_annot_conserved | grep -w -F -f - Ecoli.REL606.tpm | sed "s/$/_conserved/g" | awk -F '\t' '{OFS=FS}{print $2,$3,$(NF-1),$NF}' >> Ecoli.REL606.tpm.conservation.tsv
+cat sequence_properties/Ecoli_novel_conserved | grep -w -F -f - Ecoli.REL606.tpm | sed "s/$/_conserved/g" | awk -F '\t' '{OFS=FS}{print $2,$3,$(NF-1),$NF}' >> Ecoli.REL606.tpm.conservation.tsv
+
+#TPM count across datasets
+
+cat Ecoli.REL606.tpm.conservation.tsv | cut -f1,4 | sort -u | cut -f2 | sort | uniq -c | awk '{print $2"\t"$1}' | sed "s/$/\ttotal/g" > Ecoli.REL606.tpm.numbers.conservation
+awk -F '\t' '($3>1)' Ecoli.REL606.tpm.conservation.tsv | cut -f1,4 | sort -u | cut -f2 | sort | uniq -c | awk '{print $2"\t"$1}' | sed "s/$/\t1tpm/g" >> Ecoli.REL606.tpm.numbers.conservation
+awk -F '\t' '($3>5)' Ecoli.REL606.tpm.conservation.tsv | cut -f1,4 | sort -u | cut -f2 | sort | uniq -c | awk '{print $2"\t"$1}' | sed "s/$/\t5tpm/g" >> Ecoli.REL606.tpm.numbers.conservation
+sed -i "1s/^/dataset\tcount\tcategory\n/g" Ecoli.REL606.tpm.numbers.conservation
+
+#cumdist
+
+awk -F '\t' '($(NF-1)>0.3)' Ecoli.REL606.tpm.conservation.tsv | awk -F '\t' '{OFS=FS}{print $1,$2,$NF}' | sort -k2 | join -1 2 -2 1 - ../../proteomics_denovo/03052024_presenceabsence/MURI_uniqueID_tidy.tsv | awk '{print $2"@"$3"\t"$4}' | sort -u | cut -f1 | sort | uniq -c | awk '{print $2,$1}' | sed "s/ /\t/g" | sort -nrk2 | sed "s/@/\t/g" | sed "1s/^/gene\tcategory\tconditions\n/g" > Ecoli.REL606.0.3tpm.conditions.conservation.tsv
+awk -F '\t' '($(NF-1)>0.3)' Ecoli.REL606.tpm.conservation.tsv | awk -F '\t' '{OFS=FS}{print $1,$2,$NF}' | sort -k2 | join -1 2 -2 1 - ../../proteomics_denovo/03052024_presenceabsence/MURI_uniqueID_tidy.tsv | awk '{print $2"@"$3"\t"$4}' | sort -u | cut -f1 | sort | uniq -c | awk '{print $2,$1}' | sed "s/ /\t/g" | sort -nrk2 | sed "s/@/\t/g" | sed "1s/^/gene\tcategory\tconditions\n/g" > Ecoli.REL606.1tpm.conditions.conservation.tsv
