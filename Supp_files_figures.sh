@@ -34,10 +34,7 @@ cat Mycobacterium_ostir_input.faa | split -l10000 - Mycobacterium_
 ls Ecoli_a* Mycobacterium_a* | awk '{print "ostir -i "$0" -o "$0".ostir -j 104"}' > running.sh
 ###RUN FROM HERE###
 
-mkdir 042323_ostir_calculation
-cat x*out | awk -F ',' '($3==51)' | grep "^WP" | sed "s/$/,annotated/g" > ostir_plotting.tsv
-cat x*out | awk -F ',' '($3==51)' | grep "^sORF" | sed "s/$/,Riboseq/g" >> ostir_plotting.tsv
-cat x*out | awk -F ',' '($3==51)' | grep "^REL606" | grep -v "other" | sed "s/$/,MS/g" >> ostir_plotting.tsv
-cat x*out | awk -F ',' '($3==51)' | grep "^REL606" | grep "other" | sed "s/$/,others/g" >> ostir_plotting.tsv
+cat Ecoli*ostir | awk -F ',' '($3==51)' > Ecoli.ostir
+cat Mycobacterium*ostir | awk -F ',' '($3==51)' > Mycobacterium.ostir
 
-sed -i "1s/^/name,start_codon,start_position,expression,RBS_distance_bp,dG_total,dG_rRNA:mRNA,dG_mRNA,dG_spacing,dG_standby,dG_start_codon,type\n/g" ostir_plotting.tsv
+#Doesn't seem like Myc has more than EC, so ignore.
