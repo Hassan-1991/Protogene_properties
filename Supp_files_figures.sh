@@ -71,7 +71,7 @@ cut -f2 annotated_protein_peptides_qval0001.tsv | sort | uniq -c | grep " 1 " | 
 #all spectra:
 #Extract list of all protein and their spectra identification + amino acid sequence + file
 
- /stor/scratch/Ochman/hassan/112724_protogene_extension/promising_spectra/*spectra.tsv
+ls /stor/scratch/Ochman/hassan/112724_protogene_extension/promising_spectra/*spectra.tsv
 ls /stor/scratch/Ochman/hassan/112724_protogene_extension/RNAseq_diversion/Caglar2017_RNAseq_promising_spectra/*spectra.tsv
 ls /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/MS/mgf/real_mgf/promising_spectra/*spectra.tsv
 ls /stor/scratch/Ochman/hassan/112724_protogene_extension/data/ECOR_2023/ECOR2023_promising_spectra/*spectra.tsv
@@ -96,7 +96,173 @@ grep -F -f 39_proteins.txt - | while read -r file; do
     printf "%s\t%s\t%s\t%s\n" "$part1" "$part2" "$title" "$seq"
 done
 
+######Expression analyses, as requested by reviewr 1######
 
+#Questions:
+
+1. Does expression vary depending on conservation? For either annotated or novel proteins
+    a) Cumdist
+    b) Mean TPM (violin plot) of groups across all conditions
+    c) What fraction passes TPM cutoffs (1/5 TPM)
+2. Is there any correlation between being consistently translated ((i)detected across multiple datasets, or (ii) MS detected across lots of conditions) and level/consistency of expression
+    a) Cumdist
+    b) Mean TPM (violin plot) of groups across all conditions
+    c) What fraction passes TPM cutoffs (1/5 TPM)
+3. Can any difference be explained in terms of readthrough?
+
+#1(a) - Cumdist
+
+grep "control" Ecoli.REL606.1tpm.conditions.tsv | awk '{OFS=FS}{print $2"\t"$1"\t"$4}' >> Ecoli.REL606.1tpm.conditions.conservation.tsv
+grep "control" Ecoli.REL606.0.3tpm.conditions.tsv | awk '{OFS=FS}{print $2"\t"$1"\t"$4}' >> Ecoli.REL606.0.3tpm.conditions.conservation.tsv
+
+p1 <- read.csv("Ecoli.REL606.1tpm.conditions.conservation.tsv",sep='\t')
+p2 <- read.csv("Ecoli.REL606.0.3tpm.conditions.conservation.tsv",sep='\t')
+
+generate_plot_data <- function(df) {
+  cutoffs <- seq(-0.001, 41, by = 1)
+  plot_data_list <- list()
+  
+  for (line_value in unique(df$category)) {
+    line_data <- df[df$category == line_value, ]
+    fraction_passed <- numeric(length(cutoffs))
+    
+    for (i in seq_along(cutoffs)) {
+      fraction_passed[i] <- sum(line_data$conditions > cutoffs[i]) / nrow(line_data)
+    }
+    
+    plot_data <- data.frame(Cutoff = cutoffs, Fraction_Passed = fraction_passed, Line = line_value)
+    plot_data_list[[line_value]] <- plot_data
+  }
+  
+  combined_plot_data <- do.call(rbind, plot_data_list)
+  
+  return(combined_plot_data)
+}
+
+# Generate plot data for p1 and p2
+plot_data_p1 <- generate_plot_data(p1)
+plot_data_p2 <- generate_plot_data(p2)
+
+# Define line colors with new labels
+#line_colors <- c(
+#  "EC_Ndah" = "",
+#  "MS" = "magenta",
+#  "Nakahigashi" = "#4f83cc",
+#  "Stringer" = "#8da0cb",
+#  "VanOrsdel" = "green",
+#  "Weaver" = "#08306b",
+#  "annotated" = "darkmagenta",
+#  "control" = "grey"
+#)
+
+line_colors <- c(
+  "annotated_conserved" = "darkmagenta",
+  "annotated_ORFan" = "magenta",
+  "novel_conserved" = "#08306b",
+  "novel_ORFan" = "#8da0cb",
+  "control" = "grey"
+)
+
+# Create ggplot cumulative distribution plot for p1
+plot_p1 <- ggplot(plot_data_p1 %>% filter(Line!="MS") %>% filter(Line!="EC_Ndah") %>% filter(Line!="VanOrsdel"), aes(x = Cutoff, y = Fraction_Passed, color = Line)) +
+  geom_line(size = 1) +
+  labs(
+    x = "Number of unique conditions in which genes are expressed",
+    y = "Fraction of genes in each category"
+  ) +
+  scale_x_continuous(breaks = seq(0, 42, by = 3)) +
+  scale_color_manual(values = line_colors) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 20),  # Adjust the size as needed
+    axis.text.y = element_text(size = 20),
+    axis.title.x = element_text(size = 24), # Adjust the size as needed
+    axis.title.y = element_text(size = 24), # Adjust the size as needed
+    legend.text = element_text(size = 12),  # Adjust the size as needed
+    legend.title = element_text(size = 14),
+    panel.border = element_rect(color = "black", fill = NA, size = 1),
+    axis.ticks = element_line(color = "black", size = 0.7)
+  )
+
+# Create ggplot cumulative distribution plot for p2
+plot_p2 <- ggplot(plot_data_p2 %>% filter(Line!="MS") %>% filter(Line!="EC_Ndah") %>% filter(Line!="VanOrsdel"), aes(x = Cutoff, y = Fraction_Passed, color = Line)) +
+  geom_line(size = 1) +
+  labs(
+    x = "Number of unique conditions in which genes are expressed",
+    y = "Fraction of genes in each category"
+  ) +
+  scale_x_continuous(breaks = seq(0, 42, by = 3)) +
+  scale_color_manual(values = line_colors) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 20),  # Adjust the size as needed
+    axis.text.y = element_text(size = 20),
+    axis.title.x = element_text(size = 24), # Adjust the size as needed
+    axis.title.y = element_text(size = 24), # Adjust the size as needed
+    legend.position = "none",  # Remove the legend from the second plot
+    panel.border = element_rect(color = "black", fill = NA, size = 1),
+    axis.ticks = element_line(color = "black", size = 0.7)
+  )
+
+# Combine the two plots side-by-side with a shared legend
+cumdist_combined_plot <- plot_p1 + plot_p2 + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+# Print the combined plot
+print(cumdist_combined_plot)
+
+#1(b) - MeanTPM
+
+awk -F'\t' '{sum[$1,$4] += $3; count[$1,$4]++; category[$1] = $4} 
+     END {for (key in sum) {split(key, arr, SUBSEP); print arr[1], arr[2], sum[key] / count[key]}}' OFS='\t' Ecoli.REL606.tpm.conservation.tsv | sed "1s/^/gene\tcategory\tmeantpm\n/g" > Ecoli.REL606.tpm.conservation.meanvalues.tsv
+
+     
+
+#1(c) - TPM cutoff
+
+setwd("/stor/work/Ochman/hassan/protogene_extension/expression_location_properties")
+
+p1 <- read.csv("Ecoli.REL606.tpm.numbers.conservation",sep='\t')
+
+dataset_order <- c("annotated_conserved", "annotated_ORFan", "novel_conserved", "novel_ORFan")
+
+# Normalize counts relative to the 'total' values
+p1_normalized <- p1 %>%
+  group_by(dataset) %>%
+  mutate(fraction = ifelse(category != "total", count / count[category == "total"], NA)) %>%
+  filter(category %in% c("1tpm", "5tpm"))  # Exclude the "total" rows from plotting
+
+p1_normalized$dataset <- factor(p1_normalized$dataset, levels = dataset_order)
+
+# Create grouped bar plot
+ggplot(p1_normalized, aes(x = dataset, y = fraction, fill = category)) +
+  geom_col(position = "dodge") +
+  theme_minimal() +
+  labs(x = "Dataset", y = "Fraction", fill = "Category") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for readability
+
+
+ggplot(p1_normalized, aes(x = dataset, y = fraction, fill = category)) +
+  geom_col(data = p1_normalized %>% filter(category == "1tpm"), position = "identity", fill = "steelblue") +  # Full 1tpm bars
+  geom_col(data = p1_normalized %>% filter(category == "5tpm"), position = "identity", fill = "orange") +  # Smaller 5tpm bars
+  theme_minimal() +
+  labs(x = "Dataset", y = "Fraction", fill = "Category") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+ggplot(p1_normalized, aes(x = dataset, y = fraction, fill = category)) +
+  geom_col(data = p1_normalized %>% filter(category == "1tpm"), position = "identity", 
+           fill = "lightblue", color = "black", width = 0.7) +  # Light blue with black border
+  geom_col(data = p1_normalized %>% filter(category == "5tpm"), position = "identity", 
+           fill = "dodgerblue4", color = "black", width = 0.7) +  # Darker blue with black border
+  theme_minimal(base_size = 14) +
+  labs(x = "Dataset", y = "Fraction", fill = "Category") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5),  # Box around the plot
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+    axis.ticks = element_line(color = "black"),  # Add tick marks
+    axis.line.x = element_line(color = "black", size = 0.25),  # Line along the base of bars
+    panel.grid.major.y = element_line(color = "gray80", linetype = "solid"),  # Horizontal gridlines
+    panel.grid.minor = element_blank()  # Keep minor gridlines off
+  )
 
 #Random. Let's count the number of rbs in two genomes
 #We can start with longest_bacterial
