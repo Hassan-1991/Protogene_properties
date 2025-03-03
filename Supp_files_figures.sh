@@ -215,8 +215,6 @@ print(cumdist_combined_plot)
 awk -F'\t' '{sum[$1,$4] += $3; count[$1,$4]++; category[$1] = $4} 
      END {for (key in sum) {split(key, arr, SUBSEP); print arr[1], arr[2], sum[key] / count[key]}}' OFS='\t' Ecoli.REL606.tpm.conservation.tsv | sed "1s/^/gene\tcategory\tmeantpm\n/g" > Ecoli.REL606.tpm.conservation.meanvalues.tsv
 
-     
-
 #1(c) - TPM cutoff
 
 setwd("/stor/work/Ochman/hassan/protogene_extension/expression_location_properties")
@@ -263,6 +261,55 @@ ggplot(p1_normalized, aes(x = dataset, y = fraction, fill = category)) +
     panel.grid.major.y = element_line(color = "gray80", linetype = "solid"),  # Horizontal gridlines
     panel.grid.minor = element_blank()  # Keep minor gridlines off
   )
+
+#Now consistency analysis, including expression
+
+cd Ecoli_list
+grep "^>" Salmonella_protein_queryfile.faa | egrep -iv "prodigal|smorf|balrog|gms2" | grep -vf ../expression_location_properties
+/sequence_properties/protogene_exclude.txt - | grep --no-group-separator -A1 -f - Salmonella_CDS_queryfile.faa > consistency_analysis/Salmonella_135_protogenes.CDS.faa
+/stor/work/Ochman/hassan/tools/faTrans -stop Salmonella_135_protogenes.CDS.faa Salmonella_135_protogenes.prot.faa
+seqkit fx2tab Salmonella_135_protogenes.prot.faa | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" > temp && mv temp Salmonella_135_protogenes.prot.faa
+#Same w Ecoli
+
+usearch -sortbylength Ecoli_559_protogenes.prot.faa -fastaout Ecoli_559_protogenes.prot.sorted.faa -minseqlength 1
+usearch -cluster_smallmem Ecoli_559_protogenes.prot.sorted.faa -id 0.9 -centroids Ecoli_559_protogenes.prot.sorted.nr.faa -uc Ecoli_559_protogenes.prot.clusters.uc
+awk '$1=="S"{c[$2]=$9}$1=="H"{h[$2]=(h[$2]?h[$2]","$9:$9)}END{for(i in h)print "Cluster " i ":\t" c[i] "," h[i]}' Ecoli_559_protogenes.prot.clusters.uc > Ecoli_consistency.interim
+
+usearch -sortbylength Salmonella_135_protogenes.prot.faa -fastaout Salmonella_135_protogenes.prot.sorted.faa -minseqlength 1
+usearch -cluster_smallmem Salmonella_135_protogenes.prot.sorted.faa -id 0.9 -centroids Salmonella_135_protogenes.prot.sorted.nr.faa -uc Salmonella_135_protogenes.prot.clusters.uc
+awk '$1=="S"{c[$2]=$9}$1=="H"{h[$2]=(h[$2]?h[$2]","$9:$9)}END{for(i in h)print "Cluster " i ":\t" c[i] "," h[i]}' Salmonella_135_protogenes.prot.clusters.uc > Salmonella_consistency.interim
+
+#Manually parse to remove hits within the same database
+
+#22 are consistent between databases - pretty high number!
+#Ndah and Fijalkowski probably overlaps...
+
+#37 are consistent
+#How many are robustly translated?
+
+cut -f1 -d ',' Ecoli_consistency.interim | cut -f2 | sort -u | grep -F -f - Ecoli_559_protogenes.prot.sorted.nr.faa | tr -d ">" | grep -F -f - ../../expression_location_properties/Ecoli.REL606.1tpm.conditions.tsv | wc -l
+#i.e., 28 are independent of annotated transcripts
+#Of these 28, 25 are expressed in >10 unique conditions:
+cut -f1 -d ',' Ecoli_consistency.interim | cut -f2 | sort -u | grep -F -f - Ecoli_559_protogenes.prot.sorted.nr.faa | tr -d ">" | grep -F -f - ../../expression_location_properties/Ecoli.REL606.1tpm.conditions.tsv | awk -F '\t' '($4>10)' | wc -l
+#As opposed to 195 of all proto-genes:
+egrep -v "control|smorf|prod|gms2|balrog" ../../expression_location_properties/Ecoli.REL606.1tpm.conditions.tsv | awk -F '\t' '($4>10)' | wc -l
+#Which is (170/309=) 63% of total:
+egrep -v "control|smorf|prod|gms2|balrog" ../../expression_location_properties/Ecoli.REL606.1tpm.conditions.tsv | wc -l
+
+#How many are ORFans? 18:
+cut -f1 -d ',' Ecoli_consistency.interim | cut -f2 | sort -u | grep -F -f - Ecoli_559_protogenes.prot.sorted.nr.faa | tr -d ">" | grep -F -f - ../../expression_location_properties/sequence_properties/Ecoli_genusspecific_ORFans.final.txt | wc -l
+#I.e., 18/37 =  about half of these are ORFans, which is comparable to the rate of novel genes in general. Nothing interesting follows from this/.l
+
+#Conservation
+
+egrep "prodigal|balrog|smorf|gms2" Mycobacterium_extragenus_hits.genusnumber | awk '{print $1}' | sort -n | awk 'NR%2==1{a[NR]=$0} END{if(NR%2==1)print a[int(NR/2)+1]; else print (a[NR/2]+a[NR/2+1])/2}'
+#181.5
+egrep -iv "prodigal|balrog|smorf|gms2" Mycobacterium_extragenus_hits.genusnumber | awk '{print $1}' | sort -n | awk 'NR%2==1{a[NR]=$0} END{if(NR%2==1)print a[int(NR/2)+1]; else print (a[NR/2]+a[NR/2+1])/2}'
+#4
+
+#For Ecoli, the values are 159.5 and 6
+#For Salmnoella, however, the values are 618 and 18
+
 
 #Random. Let's count the number of rbs in two genomes
 #We can start with longest_bacterial
