@@ -82,10 +82,32 @@ grep "E. coli" master_table_interim.tsv | cut -f1 | sed "s/$/(/g" | grep -F -f -
 grep "S. enterica" master_table_interim.tsv | cut -f1 | sed "s/$/(/g" | grep -F -f - ../Salmonella_extragenus_hits.genusnumber | awk '{print $2,$1}' | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/ /\t/g" >> conservation_interim
 grep "M. tuberculosis" master_table_interim.tsv | cut -f1 | sed "s/$/(/g" | grep -F -f - ../Mycobacterium_extragenus_hits.genusnumber | awk '{print $2,$1}' | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/ /\t/g" >> conservation_interim
 sort -k1 conservation_interim -o conservation_interim
-sort -k1 master_table_interim.tsv | join -t '  ' -1 1 -2 1 - conservation_interim
+sort -k1 master_table_interim.tsv | join -t '  ' -1 1 -2 1 - conservation_interim > temp
 cut -f1 conservation_interim | grep -v -w -F -f - master_table_interim.tsv | sed "s/$/\tN\/A/g" >> temp
 mv temp master_table_interim.tsv
 
+#1TPM
+cut -f1 master_table_interim.tsv | sed "s/$/(/g" | grep -F -f - ../../Ecoli.REL606.1tpm.conditions.tsv | cut -f2,4 | sed "s/(+)//g" | sed "s/(-)//g" | sort -k1 > expression_interim
+sort -k1 expression_interim -o expression_interim
+sort -k1 master_table_interim.tsv | join -t '      ' -1 1 -2 1 - expression_interim > temp
+cut -f1 expression_interim | grep -v -w -F -f - master_table_interim.tsv | cut -f1 | sort -u | sed "s/$/(/g" | grep -w -F -f - ../../Ecoli.REL606.tpm | cut -f2 | sort -u | sed "s/(+)//g" | sed "s/(-)//g" | grep -w -F -f - master_table_interim.tsv | sed "s/$/\t0/g" >> temp
+cut -f1 temp | grep -v -w -F -f - master_table_interim.tsv | sed "s/$/\tN\/A/g" >> temp
+mv temp master_table_interim.tsv
+
+#0.3TPM
+cut -f1 master_table_interim.tsv | sed "s/$/(/g" | grep -F -f - ../../Ecoli.REL606.0.3tpm.conditions.tsv | cut -f2,4 | sed "s/(+)//g" | sed "s/(-)//g" | sort -k1 > expression_interim
+sort -k1 expression_interim -o expression_interim
+sort -k1 master_table_interim.tsv | join -t '      ' -1 1 -2 1 - expression_interim > temp
+cut -f1 expression_interim | grep -v -w -F -f - master_table_interim.tsv | cut -f1 | sort -u | sed "s/$/(/g" | grep -w -F -f - ../../Ecoli.REL606.tpm | cut -f2 | sort -u | sed "s/(+)//g" | sed "s/(-)//g" | grep -w -F -f - master_table_interim.tsv | sed "s/$/\t0/g" >> temp
+cut -f1 expression_interim | grep -v -w -F -f - master_table_interim.tsv | sed "s/$/\tN\/A/g" >> temp
+mv temp master_table_interim.tsv
+
+#meanexpression interim
+cut -f1 master_table_interim.tsv | sed "s/$/(/g" | grep -F -f - ../../Ecoli.REL606.tpm | cut -f2,7 | awk '{sum[$1] += $2; count[$1]++} END {for (key in sum) print key, sum[key] / count[key]}' | sed "s/(+)//g" | sed "s/(-)//g" | sed "s/ /\t/g" > meanexpression_interim
+sort -k1 meanexpression_interim -o meanexpression_interim
+sort -k1 master_table_interim.tsv | join -t '      ' -1 1 -2 1 - meanexpression_interim > temp
+cut -f1 meanexpression_interim | grep -v -w -F -f - master_table_interim.tsv | sed "s/$/\tN\/A/g" >> temp
+mv temp master_table_interim.tsv
 
 
 
