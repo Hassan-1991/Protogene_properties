@@ -265,8 +265,7 @@ ggplot(p1_normalized, aes(x = dataset, y = fraction, fill = category)) +
 #Now consistency analysis, including expression
 
 cd Ecoli_list
-grep "^>" Salmonella_protein_queryfile.faa | egrep -iv "prodigal|smorf|balrog|gms2" | grep -vf ../expression_location_properties
-/sequence_properties/protogene_exclude.txt - | grep --no-group-separator -A1 -f - Salmonella_CDS_queryfile.faa > consistency_analysis/Salmonella_135_protogenes.CDS.faa
+grep "^>" Salmonella_protein_queryfile.faa | egrep -iv "prodigal|smorf|balrog|gms2" | grep -vf ../expression_location_properties/sequence_properties/protogene_exclude.txt - | grep --no-group-separator -A1 -f - Salmonella_CDS_queryfile.faa > consistency_analysis/Salmonella_135_protogenes.CDS.faa
 /stor/work/Ochman/hassan/tools/faTrans -stop Salmonella_135_protogenes.CDS.faa Salmonella_135_protogenes.prot.faa
 seqkit fx2tab Salmonella_135_protogenes.prot.faa | sed "s/\t$//g" | sed "s/^/>/g" | sed "s/\t/\n/g" > temp && mv temp Salmonella_135_protogenes.prot.faa
 #Same w Ecoli
@@ -309,6 +308,10 @@ egrep -iv "prodigal|balrog|smorf|gms2" Mycobacterium_extragenus_hits.genusnumber
 
 #For Ecoli, the values are 159.5 and 6
 #For Salmnoella, however, the values are 618 and 18
+
+#LET'S MAKE THE LARGE TABLE#
+
+mkdir /stor/work/Ochman/hassan/protogene_extension/expression_location_properties/sequence_properties/supp_allprotein_categories
 
 
 #Random. Let's count the number of rbs in two genomes
