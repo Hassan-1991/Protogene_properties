@@ -1,10 +1,27 @@
-#For Caglar2017, these files have been generated previously
-#See code in masspec_analysis repository
+#For Caglar2017 and ECOR datasets, convert raw files to mgf using msconvert, e.g.:
+docker run -it --rm -e WINEDEBUG=-all -v `pwd`:`pwd` -w `pwd` chambm/pwiz-skyline-i-agree-to-the-vendor-licenses wine msconvert /stor/work/Ochman/hassan/Fall_2022/NEW_DATA/8869_HU_01.raw --mgf
+#msconvert is very finicky. It needs to be run in the same folder as the raw file. Otherwise even absolute addresses don't work
 
-#mgf files:
+#mgf files located here:
 /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Caglar2017/MS_mgf/
-#bamfiles:
+#ECOR mgfs:
+/stor/scratch/Ochman/hassan/112724_protogene_extension/data/ECOR_2023/
+
+#For Caglar2017 RNAseq:
+#Run Trimmomatic with standard options to convert all fastq files to make trimmed files
+#Stock code:
+
+java -jar ./trimmomatic-0.39.jar PE -threads 36 read1.fastq read2.fastq read1_paired.fastq read1_unpaired.fastq read2_paired.fastq read2_unpaired.fastq ILLUMINACLIP:illumina_truseq_6bp_dual_barcode_PE.fasta:2:30:10:8:true MINLEN:20
+
+#Run bowtie to convert trimmed files to bam files
+#Stock code:
+bowtie2-build --threads 72 -f REL606.fasta REL606.bowtie
+bowtie2 -x REL606.bowtie -1 read1_paired.fastq -2 read2_paired.fastq -U read1_unpaired.fastq,read2_unpaired.fastq -S read.sam --threads 72 --local --very-sensitive-local && samtools view -bS read.sam -@ 72 > read.bam && time samtools sort -n -o read_sorted.bam read.bam -@ 72 && time samtools index read_sorted.bam -@ 72
+
+#bamfiles are located here:
 /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Caglar2017/RNAseq/bamfiles/
+
+#For Mori2021:
 
 #Mori2021,MS:
 cd /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/MS/
@@ -16,9 +33,8 @@ grep -P "wiff" *html | cut -f8 -d "\"" | sort -u | sort -u | grep -v "SW" | sed 
 #parallelize, 10 per screen:
 ls x* | sed "s/^/bash /g" > running.sh
 /stor/work/Ochman/hassan/tools/parallelize_run.sh
-#mgf conversion happens in my Windows PC using GUI msconvert
+#mgf conversion happens in Windows PC using GUI msconvert
 #peak picking enabled
-
 
 #Mori2021,RNAseq:
 cd /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/RNAseq/raw
@@ -43,5 +59,3 @@ done
 #bamfiles:
 /stor/scratch/Ochman/hassan/112724_protogene_extension/data/Mori2021/RNAseq/bamfiles
 
-#ECOR mgfs:
-/stor/scratch/Ochman/hassan/112724_protogene_extension/data/ECOR_2023/
